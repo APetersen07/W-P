@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#07070f"/>
 <title>Sentinel — Polymarket</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{
   --bg:#07070f;--card:#0f0f1a;--card2:#161625;--border:#1e1e30;
@@ -193,7 +194,7 @@ const ST = {
   lastScan: null,
   countdown: 15,
   prevData: S.get('prevData',{}),
-  cfg: S.get('cfg',{email:'',sendgrid:'',minScore:30,scanInterval:15}),
+  cfg: S.get('cfg',{email:'',emailjs_public:'Iba5R2ToxHNIgc1ge',emailjs_service:'service_6ou6pdo',emailjs_template:'q1ctsi8',minScore:30,scanInterval:15}),
   newAlertCount: 0,
 };
 
@@ -201,18 +202,19 @@ const ST = {
 // POLYMARKET API — multiple endpoints for redundancy
 // ═══════════════════════════════════════════════════════════
 const ENDPOINTS = [
-  'https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false',
-  'https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=liquidityNum&ascending=false',
+  'https://corsproxy.io/?url=https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false',
+  'https://corsproxy.io/?url=https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=liquidityNum&ascending=false',
 ];
 
 async function fetchMarkets() {
   for (const url of ENDPOINTS) {
     try {
-      const r = await fetch(url, {cache:'no-store'});
+      const r = await fetch(url, {cache:'no-store', headers:{'Accept':'application/json'}});
       if (!r.ok) continue;
       const data = await r.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    } catch {}
+      const arr = Array.isArray(data) ? data : (data.data || data.markets || []);
+      if (arr.length > 0) return arr;
+    } catch(e) { console.warn('Endpoint failed:', url, e.message); }
   }
   return [];
 }
@@ -233,7 +235,9 @@ function detectInsider(m, prev) {
   const signals = [];
   let score = 0;
 
-  const price = parseFloat(m.outcomePrices?.[0] ?? m.bestBid ?? 0.5);
+  let _prices;
+    try { _prices = typeof m.outcomePrices==='string' ? JSON.parse(m.outcomePrices) : (m.outcomePrices||[0.5]); } catch { _prices=[0.5]; }
+    const price = parseFloat(_prices[0] ?? m.lastTradePrice ?? 0.5);
   const vol24 = parseFloat(m.volume24hr ?? m.volumeNum ?? 0);
   const vol7d  = parseFloat(m.volume ?? 0);
   const liq    = parseFloat(m.liquidityNum ?? m.liquidity ?? 1);
@@ -402,10 +406,10 @@ function sendPush(title, body, url) {
 // ═══════════════════════════════════════════════════════════
 async function sendEmail(market, detection, confidence, rec) {
   const cfg = ST.cfg;
-  if (!cfg.sendgrid || !cfg.email) return;
+  if (!cfg.emailjs_public || !cfg.emailjs_service || !cfg.emailjs_template) return;
   const url = polyUrl(market);
-  const body = [
-    'SENTINEL — POLYMARKET INSIDER ADVARSEL',
+  const message = [
+    '🚨 SENTINEL — POLYMARKET INSIDER ADVARSEL',
     '',
     `📊 Market: ${market.question}`,
     `🔗 Link: ${url}`,
@@ -418,21 +422,18 @@ async function sendEmail(market, detection, confidence, rec) {
     '',
     `Volumen 24t: $${fmtN(detection.vol24)}`,
     `Score: ${detection.score}/100`,
-    '',
     `Tidspunkt: ${new Date().toLocaleString('da-DK')}`,
   ].join('\n');
   try {
-    await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method:'POST',
-      headers:{Authorization:`Bearer ${cfg.sendgrid}`,'Content-Type':'application/json'},
-      body:JSON.stringify({
-        personalizations:[{to:[{email:cfg.email}]}],
-        from:{email:cfg.email,name:'Sentinel'},
-        subject:`🚨 ${confidence}% sikker — ${market.question?.slice(0,55)}`,
-        content:[{type:'text/plain',value:body}],
-      }),
+    emailjs.init(cfg.emailjs_public);
+    await emailjs.send(cfg.emailjs_service, cfg.emailjs_template, {
+      title: market.question?.slice(0,60) || 'Insider Signal',
+      message: message,
+      name: 'Sentinel',
+      email: cfg.email || 'sentinel@app.dk',
     });
-  } catch {}
+    console.log('Email sent via EmailJS');
+  } catch(e) { console.warn('EmailJS error:', e); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -729,15 +730,23 @@ function renderIndstillinger() {
     </div>
 
     <div class="settings-section">
-      <div class="settings-label">E-mail advarsler</div>
+      <div class="settings-label">E-mail advarsler (EmailJS)</div>
       <div class="settings-card">
         <div class="s-input-wrap">
-          <div class="s-input-label">DIN E-MAIL</div>
-          <input class="s-input" id="cfg-email" type="email" value="${cfg.email||''}" placeholder="din@email.dk"/>
+          <div class="s-input-label">DIN E-MAIL (modtager)</div>
+          <input class="s-input" id="cfg-email" type="email" value="${cfg.email||''}" placeholder="petersenazola@gmail.com"/>
         </div>
         <div class="s-input-wrap">
-          <div class="s-input-label">SENDGRID API-NØGLE</div>
-          <input class="s-input" id="cfg-sendgrid" type="password" value="${cfg.sendgrid||''}" placeholder="SG.xxxxxxxxxx"/>
+          <div class="s-input-label">EMAILJS PUBLIC KEY</div>
+          <input class="s-input" id="cfg-emailjs-public" type="text" value="${cfg.emailjs_public||''}" placeholder="Iba5R2ToxHNIgc1ge"/>
+        </div>
+        <div class="s-input-wrap">
+          <div class="s-input-label">EMAILJS SERVICE ID</div>
+          <input class="s-input" id="cfg-emailjs-service" type="text" value="${cfg.emailjs_service||''}" placeholder="service_6ou6pdo"/>
+        </div>
+        <div class="s-input-wrap">
+          <div class="s-input-label">EMAILJS TEMPLATE ID</div>
+          <input class="s-input" id="cfg-emailjs-template" type="text" value="${cfg.emailjs_template||''}" placeholder="q1ctsi8"/>
         </div>
       </div>
     </div>
@@ -748,7 +757,7 @@ function renderIndstillinger() {
       💡 <b>Nøgler gemmes permanent</b> — forsvinder ikke når du lukker appen<br/>
       💡 <b>Scan interval:</b> 15 sek giver hurtigst mulige alarmer<br/>
       💡 <b>Push-notifikationer:</b> Aktivér ovenfor for at få alarmer på låseskærmen<br/>
-      💡 <b>E-mail:</b> Kræver gratis SendGrid konto (app.sendgrid.com)<br/>
+      💡 <b>E-mail:</b> Bruger EmailJS — allerede sat op med dine nøgler ✓<br/>
       💡 <b>Score 30+</b> = moderat signal, <b>60+</b> = høj risiko/mulighed
     </div>
 
@@ -829,10 +838,12 @@ function clearAll() {
 function saveSettings() {
   const interval = parseInt(document.getElementById('cfg-interval')?.value)||15;
   ST.cfg = {
-    email:      document.getElementById('cfg-email')?.value||'',
-    sendgrid:   document.getElementById('cfg-sendgrid')?.value||'',
-    minScore:   parseInt(document.getElementById('cfg-score')?.value)||30,
-    scanInterval: Math.max(10, interval),
+    email:             document.getElementById('cfg-email')?.value||'',
+    emailjs_public:    document.getElementById('cfg-emailjs-public')?.value||'Iba5R2ToxHNIgc1ge',
+    emailjs_service:   document.getElementById('cfg-emailjs-service')?.value||'service_6ou6pdo',
+    emailjs_template:  document.getElementById('cfg-emailjs-template')?.value||'q1ctsi8',
+    minScore:          parseInt(document.getElementById('cfg-score')?.value)||30,
+    scanInterval:      Math.max(10, interval),
   };
   S.set('cfg', ST.cfg);
 
