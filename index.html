@@ -201,46 +201,66 @@ const ST = {
 // ═══════════════════════════════════════════════════════════
 // POLYMARKET API — multiple endpoints for redundancy
 // ═══════════════════════════════════════════════════════════
-// Multiple CORS proxies for redundancy
-const PROXIES = [
-  'https://corsproxy.io/?url=',
-  'https://api.allorigins.win/raw?url=',
-  'https://cors-anywhere.herokuapp.com/',
-];
-const BASE_URL = 'https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false';
+const BASE_URL = 'https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=50&order=volume24hr&ascending=false';
+
+async function fetchWithProxy(proxyUrl) {
+  const r = await fetch(proxyUrl, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const raw = await r.json();
+  // allorigins wraps in {contents: "..."}
+  if (raw && raw.contents) {
+    const parsed = JSON.parse(raw.contents);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+  return Array.isArray(raw) ? raw : [];
+}
 
 async function fetchMarkets() {
-  // Try each proxy in order
-  for (const proxy of PROXIES) {
-    try {
-      const url = proxy + encodeURIComponent(BASE_URL);
-      console.log('Trying:', proxy);
-      const r = await fetch(url, {
-        cache: 'no-store',
-        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!r.ok) { console.warn('Not OK:', r.status); continue; }
-      const data = await r.json();
-      const arr = Array.isArray(data) ? data : (data.contents ? JSON.parse(data.contents) : []);
-      if (arr.length > 0) {
-        console.log('Success via:', proxy, '— got', arr.length, 'markets');
-        ST.wsStatus = 'poll';
-        return arr;
-      }
-    } catch(e) { console.warn('Proxy failed:', proxy, e.message); }
-  }
+  const encoded = encodeURIComponent(BASE_URL);
   
-  // Last resort: try direct (works on some networks)
+  // Try allorigins first - most reliable for CORS
   try {
-    const r = await fetch(BASE_URL, { cache:'no-store', signal: AbortSignal.timeout(5000) });
+    const data = await fetchWithProxy(`https://api.allorigins.win/get?url=${encoded}`);
+    if (data.length > 0) { console.log('allorigins ok:', data.length); return data; }
+  } catch(e) { console.warn('allorigins failed:', e.message); }
+
+  // Try corsproxy.io
+  try {
+    const r = await fetch(`https://corsproxy.io/?${encoded}`, {
+      cache: 'no-store', signal: AbortSignal.timeout(10000),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const arr = Array.isArray(data) ? data : [];
+      if (arr.length > 0) { console.log('corsproxy ok:', arr.length); return arr; }
+    }
+  } catch(e) { console.warn('corsproxy failed:', e.message); }
+
+  // Try thingproxy
+  try {
+    const r = await fetch(`https://thingproxy.freeboard.io/fetch/${BASE_URL}`, {
+      cache: 'no-store', signal: AbortSignal.timeout(10000),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const arr = Array.isArray(data) ? data : [];
+      if (arr.length > 0) { console.log('thingproxy ok:', arr.length); return arr; }
+    }
+  } catch(e) { console.warn('thingproxy failed:', e.message); }
+
+  // Direct as last resort
+  try {
+    const r = await fetch(BASE_URL, { cache:'no-store', signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const data = await r.json();
       if (Array.isArray(data) && data.length > 0) return data;
     }
-  } catch {}
-  
-  console.error('All endpoints failed');
+  } catch(e) { console.warn('direct failed:', e.message); }
+
+  console.error('All proxies failed');
   return [];
 }
 
