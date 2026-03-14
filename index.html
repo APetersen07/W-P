@@ -6,637 +6,850 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Sentinel"/>
-<meta name="theme-color" content="#0a0a0f"/>
-<title>Sentinel — Polymarket Watch</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<meta name="theme-color" content="#07070f"/>
+<title>Sentinel — Polymarket</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-:root {
-  --bg: #0a0a0f;
-  --card: #13131a;
-  --border: #1e1e2e;
-  --text: #e8e8f0;
-  --muted: #6b6b80;
-  --green: #00d4a0;
-  --red: #ff4466;
-  --yellow: #ffb830;
-  --blue: #4488ff;
-  --purple: #a855f7;
-  --safe-top: env(safe-area-inset-top);
-  --safe-bot: env(safe-area-inset-bottom);
+:root{
+  --bg:#07070f;--card:#0f0f1a;--card2:#161625;--border:#1e1e30;
+  --text:#f0f0ff;--muted:#5a5a80;--dim:#2a2a45;
+  --green:#00e5a0;--red:#ff3366;--yellow:#ffb800;--blue:#3b82f6;--purple:#8b5cf6;
+  --safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body,#app{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
-button{cursor:pointer;border:none;background:none;color:inherit;font-family:inherit;touch-action:manipulation}
-input{font-family:inherit;font-size:16px;outline:none;-webkit-appearance:none}
+button{cursor:pointer;border:none;background:none;color:inherit;font-family:inherit}
+input,select{font-family:inherit;font-size:16px;outline:none;-webkit-appearance:none}
+a{color:inherit;text-decoration:none}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:2px}
+::-webkit-scrollbar-thumb{background:var(--dim)}
+
+/* ANIMATIONS */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+@keyframes flash{0%,100%{background:var(--card)}50%{background:rgba(255,51,102,.15)}}
+.spin{animation:spin .8s linear infinite}
+.pulse{animation:pulse 2s infinite}
+.slide-up{animation:slideUp .3s ease}
+.flash{animation:flash .6s ease}
 
 /* LAYOUT */
 .app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
-.header{padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
-.header-top{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-.logo{font-size:20px;font-weight:700;letter-spacing:-0.5px}
-.logo span{color:var(--purple)}
-.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.status-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
-.status-dot.off{background:var(--red)}
-.header-sub{font-size:12px;color:var(--muted)}
-.scan-btn{margin-left:auto;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0.3px}
-.scan-btn.on{background:rgba(255,68,102,0.15);color:var(--red);border:1px solid rgba(255,68,102,0.3)}
-.scan-btn.off{background:rgba(0,212,160,0.12);color:var(--green);border:1px solid rgba(0,212,160,0.25)}
-.settings-btn{width:36px;height:36px;border-radius:10px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* HEADER */
+.header{background:rgba(7,7,15,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:12px 16px;flex-shrink:0;position:sticky;top:0;z-index:50}
+.header-row1{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.logo{font-size:18px;font-weight:800;letter-spacing:-0.5px;flex:1}
+.logo-poly{color:var(--purple)}
+.ws-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.5px}
+.ws-badge.live{background:rgba(0,229,160,.12);color:var(--green);border:1px solid rgba(0,229,160,.2)}
+.ws-badge.poll{background:rgba(255,184,0,.1);color:var(--yellow);border:1px solid rgba(255,184,0,.2)}
+.ws-badge.off{background:rgba(255,51,102,.1);color:var(--red);border:1px solid rgba(255,51,102,.2)}
+.header-btn{width:34px;height:34px;border-radius:10px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px}
+.header-stats{display:flex;gap:12px}
+.stat{font-size:11px;color:var(--muted)}
+.stat b{color:var(--text);font-weight:600}
 
 /* TABS */
-.tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);flex-shrink:0}
-.tab{padding:12px;text-align:center;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;position:relative}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.tab{padding:11px 0;text-align:center;font-size:12px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;position:relative;transition:color .15s}
 .tab.active{color:var(--text);border-bottom-color:var(--purple)}
-.tab-badge{position:absolute;top:8px;right:calc(50% - 28px);background:var(--red);color:white;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center}
-
-/* CONTENT */
-.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(20px + var(--safe-bot))}
+.tab-badge{position:absolute;top:6px;right:calc(50% - 22px);background:var(--red);color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;line-height:14px}
 
 /* CARDS */
-.section-title{padding:16px 20px 8px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
-.market-card{margin:0 16px 10px;background:var(--card);border-radius:16px;border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s}
-.market-card.high{border-color:rgba(255,68,102,0.4);background:rgba(255,68,102,0.04)}
-.market-card.med{border-color:rgba(255,184,48,0.3)}
-.market-card-header{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
-.market-icon{width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.market-title{font-size:14px;font-weight:600;line-height:1.3;flex:1}
-.market-meta{padding:0 16px 14px;display:flex;gap:8px;flex-wrap:wrap}
-.meta-pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500}
-.pill-green{background:rgba(0,212,160,0.1);color:var(--green)}
-.pill-red{background:rgba(255,68,102,0.1);color:var(--red)}
-.pill-yellow{background:rgba(255,184,48,0.1);color:var(--yellow)}
-.pill-blue{background:rgba(68,136,255,0.1);color:var(--blue)}
-.pill-purple{background:rgba(168,85,247,0.1);color:var(--purple)}
-.market-footer{padding:10px 16px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
-.confidence-bar-bg{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
-.confidence-bar{height:100%;border-radius:3px;transition:width 0.5s ease}
-.confidence-label{font-size:12px;font-weight:700;flex-shrink:0;width:36px;text-align:right}
-.open-link{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.15);color:var(--purple);border:1px solid rgba(168,85,247,0.2);text-decoration:none;flex-shrink:0}
+.feed{padding:12px 14px;padding-bottom:calc(20px + var(--safe-bot))}
+.section-head{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin:8px 0 8px;display:flex;align-items:center;gap:6px}
+.section-head::after{content:'';flex:1;height:1px;background:var(--border)}
 
-/* ALERT CARDS */
-.alert-card{margin:0 16px 10px;background:var(--card);border-radius:16px;padding:14px 16px;border-left:3px solid var(--red);border:1px solid rgba(255,68,102,0.3);border-left:3px solid var(--red)}
-.alert-card.med{border-left-color:var(--yellow);border-color:rgba(255,184,48,0.25)}
-.alert-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.alert-ticker{font-size:16px;font-weight:700}
-.alert-badge{padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.5px}
-.badge-red{background:rgba(255,68,102,0.15);color:var(--red)}
-.badge-yellow{background:rgba(255,184,48,0.12);color:var(--yellow)}
-.alert-title{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.4}
-.alert-signals{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-.alert-signal{font-size:12px;color:#8888aa}
-.alert-signal::before{content:"▸ "}
-.alert-actions{display:flex;gap:8px;align-items:center}
-.alert-time{font-size:11px;color:var(--muted);flex:1}
-.alert-open{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;background:var(--purple);color:white;text-decoration:none;display:inline-block}
+/* ALERT CARD */
+.alert-card{background:var(--card);border-radius:16px;border:1px solid var(--border);margin-bottom:10px;overflow:hidden;transition:border-color .2s}
+.alert-card.high{border-color:rgba(255,51,102,.35);background:rgba(255,51,102,.04)}
+.alert-card.med{border-color:rgba(255,184,0,.25)}
+.alert-top{padding:12px 14px 10px;display:flex;gap:10px;align-items:flex-start}
+.alert-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.alert-icon.high{background:rgba(255,51,102,.12)}
+.alert-icon.med{background:rgba(255,184,0,.1)}
+.alert-title{font-size:14px;font-weight:600;line-height:1.35;flex:1}
+.alert-time{font-size:11px;color:var(--muted);margin-top:3px}
+.alert-pills{padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px}
+.pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.pill-red{background:rgba(255,51,102,.1);color:var(--red)}
+.pill-green{background:rgba(0,229,160,.1);color:var(--green)}
+.pill-yellow{background:rgba(255,184,0,.1);color:var(--yellow)}
+.pill-blue{background:rgba(59,130,246,.1);color:var(--blue)}
+.pill-purple{background:rgba(139,92,246,.1);color:var(--purple)}
+.pill-dim{background:var(--dim);color:var(--muted)}
 
-/* CONFIDENCE SCORE */
-.confidence-big{text-align:center;padding:20px 16px}
-.conf-circle{width:100px;height:100px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;border:3px solid}
-.conf-label{font-size:13px;color:var(--muted)}
+/* CONFIDENCE */
+.conf-block{padding:10px 14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.conf-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.conf-label{font-size:11px;color:var(--muted);flex:1}
+.conf-pct{font-size:16px;font-weight:800}
+.conf-bar-bg{height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;flex:1}
+.conf-bar{height:100%;border-radius:3px;transition:width .6s ease}
+.conf-signals{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+.conf-signal{font-size:11px;color:#7070a0;padding-left:2px}
+.conf-signal::before{content:"▸ ";color:var(--purple)}
 
-/* EMPTY STATE */
-.empty{text-align:center;padding:60px 30px;color:var(--muted)}
-.empty-icon{font-size:40px;margin-bottom:12px;opacity:0.4}
-.empty-title{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text)}
-.empty-sub{font-size:13px;line-height:1.5}
+/* CTA */
+.alert-cta{padding:10px 14px;display:flex;align-items:center;gap:8px}
+.cta-meta{flex:1;font-size:11px;color:var(--muted);line-height:1.4}
+.cta-btn{padding:9px 16px;border-radius:12px;font-size:13px;font-weight:700;background:var(--purple);color:#fff;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+
+/* MARKET ROW */
+.market-row{background:var(--card);border-radius:14px;border:1px solid var(--border);margin-bottom:8px;padding:12px 14px;display:flex;gap:10px;align-items:center}
+.market-row.flagged{border-color:rgba(255,51,102,.3);border-left:3px solid var(--red)}
+.market-row.flagged-med{border-color:rgba(255,184,0,.25);border-left:3px solid var(--yellow)}
+.market-info{flex:1;min-width:0}
+.market-q{font-size:13px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.market-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.market-right{text-align:right;flex-shrink:0}
+.market-price{font-size:16px;font-weight:800}
+.market-vol{font-size:10px;color:var(--muted)}
+.conf-mini{display:flex;align-items:center;gap:4px;margin-top:4px;justify-content:flex-end}
+.conf-mini-bar{width:40px;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.conf-mini-fill{height:100%;border-radius:2px}
+.conf-mini-pct{font-size:10px;font-weight:600}
 
 /* SETTINGS */
-.settings-page{padding:20px 16px;padding-bottom:calc(40px + var(--safe-bot))}
-.settings-section{margin-bottom:24px}
-.settings-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+.settings-wrap{padding:16px 14px;padding-bottom:calc(40px + var(--safe-bot))}
+.settings-section{margin-bottom:20px}
+.settings-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
 .settings-card{background:var(--card);border-radius:16px;border:1px solid var(--border);overflow:hidden}
-.settings-row{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.settings-row{padding:13px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
 .settings-row:last-child{border-bottom:none}
-.settings-row-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.settings-row-text{flex:1}
-.settings-row-title{font-size:14px;font-weight:500}
-.settings-row-sub{font-size:12px;color:var(--muted);margin-top:1px}
-.toggle{width:44px;height:26px;border-radius:13px;position:relative;flex-shrink:0;transition:background 0.2s}
+.s-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.s-text{flex:1}
+.s-title{font-size:14px;font-weight:500}
+.s-sub{font-size:12px;color:var(--muted);margin-top:1px}
+.toggle{width:44px;height:26px;border-radius:13px;position:relative;flex-shrink:0;transition:background .2s;cursor:pointer}
 .toggle.on{background:var(--green)}
-.toggle.off{background:var(--border)}
-.toggle-knob{width:20px;height:20px;border-radius:50%;background:white;position:absolute;top:3px;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
-.toggle.on .toggle-knob{left:21px}
-.toggle.off .toggle-knob{left:3px}
-.settings-input-wrap{padding:14px 16px;border-bottom:1px solid var(--border)}
-.settings-input-wrap:last-child{border-bottom:none}
-.settings-input-label{font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:0.5px}
-.settings-input{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:15px}
-.settings-input:focus{border-color:var(--purple)}
-.save-btn{width:100%;padding:14px;border-radius:14px;font-size:15px;font-weight:600;background:var(--purple);color:white;margin-top:8px}
-.status-bar{padding:8px 16px;margin:0 16px 12px;border-radius:12px;font-size:12px;display:flex;align-items:center;gap:8px}
-.status-bar.warn{background:rgba(255,184,48,0.1);border:1px solid rgba(255,184,48,0.2);color:var(--yellow)}
-.status-bar.ok{background:rgba(0,212,160,0.08);border:1px solid rgba(0,212,160,0.2);color:var(--green)}
+.toggle.off{background:var(--dim)}
+.toggle-k{width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.toggle.on .toggle-k{left:21px}
+.toggle.off .toggle-k{left:3px}
+.s-input-wrap{padding:13px 14px;border-bottom:1px solid var(--border)}
+.s-input-wrap:last-child{border-bottom:none}
+.s-input-label{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:600;letter-spacing:.5px}
+.s-input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:15px}
+.s-input:focus{border-color:var(--purple)}
+.save-btn{width:100%;padding:14px;border-radius:14px;font-size:15px;font-weight:700;background:var(--purple);color:#fff;margin-top:8px}
+.info-box{background:var(--card);border-radius:14px;border:1px solid var(--border);padding:14px;font-size:12px;color:var(--muted);line-height:1.7;margin-top:8px}
+
+/* STATUS BANNER */
+.banner{margin:0 0 10px;padding:10px 14px;border-radius:12px;font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.banner.warn{background:rgba(255,184,0,.08);border:1px solid rgba(255,184,0,.2);color:var(--yellow)}
+.banner.ok{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.15);color:var(--green)}
+.banner.info{background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);color:var(--purple)}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 30px;color:var(--muted)}
+.empty-icon{font-size:44px;margin-bottom:14px;opacity:.3}
+.empty-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px}
+.empty-sub{font-size:13px;line-height:1.6}
 
 /* SPINNER */
-.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-wrap{padding:40px;text-align:center;color:var(--muted);font-size:13px}
-.loading-wrap .spinner{margin-bottom:12px}
+.spinner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%}
+.loading-wrap{padding:50px;text-align:center;color:var(--muted);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:12px}
 
-/* PULSE */
-.pulse{animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* RISK METER */
+.risk-meter{display:flex;align-items:center;gap:3px;margin-top:4px}
+.risk-bar{width:14px;height:4px;border-radius:2px;background:var(--dim)}
+.risk-bar.filled-red{background:var(--red)}
+.risk-bar.filled-yellow{background:var(--yellow)}
+.risk-bar.filled-green{background:var(--green)}
+
+/* NEW ALERT FLASH */
+.new-dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block;margin-left:4px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-// ── STORAGE ──────────────────────────────────────────────────────────────────
-const store = {
-  get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+// ═══════════════════════════════════════════════════════════
+// STORAGE — persistent, survives app restarts
+// ═══════════════════════════════════════════════════════════
+const S = {
+  get:(k,fb=null)=>{ try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb} },
+  set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v))}catch{} },
 };
 
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let state = {
-  tab: 'markeder',
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const ST = {
+  tab: 'feed',
   markets: [],
-  alerts: [],
+  alerts: S.get('alerts',[]),
   loading: false,
-  scanning: store.get('scanning') ?? true,
+  wsStatus: 'off', // off | connecting | live | poll
+  scanning: S.get('scanning',true),
   pushEnabled: false,
-  totalAlerts: store.get('totalAlerts') ?? 0,
+  totalAlerts: S.get('totalAlerts',0),
   lastScan: null,
-  countdown: 60,
-  cfg: store.get('cfg') || { email: '', sendgrid: '', minVolume: 50000, minConfidence: 60 },
-  showSettings: false,
-  prevPrices: store.get('prevPrices') || {},
+  countdown: 15,
+  prevData: S.get('prevData',{}),
+  cfg: S.get('cfg',{email:'',sendgrid:'',minScore:30,scanInterval:15}),
+  newAlertCount: 0,
 };
 
-// ── POLYMARKET API ────────────────────────────────────────────────────────────
-async function fetchPolymarkets() {
-  try {
-    // Fetch top active markets sorted by volume
-    const r = await fetch('https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false');
-    const data = await r.json();
-    return data;
-  } catch(e) {
-    console.error('Polymarket fetch error:', e);
-    return [];
+// ═══════════════════════════════════════════════════════════
+// POLYMARKET API — multiple endpoints for redundancy
+// ═══════════════════════════════════════════════════════════
+const ENDPOINTS = [
+  'https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false',
+  'https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=liquidityNum&ascending=false',
+];
+
+async function fetchMarkets() {
+  for (const url of ENDPOINTS) {
+    try {
+      const r = await fetch(url, {cache:'no-store'});
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    } catch {}
   }
+  return [];
 }
 
-// ── DETECT INSIDER SIGNALS ────────────────────────────────────────────────────
-function detectInsider(market, prevPrice) {
+// Fetch recent trades for a specific market to detect large trades
+async function fetchRecentTrades(conditionId) {
+  try {
+    const r = await fetch(`https://data-api.polymarket.com/trades?market=${conditionId}&limit=20`, {cache:'no-store'});
+    if (!r.ok) return [];
+    return await r.json();
+  } catch { return []; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DETECTION ENGINE
+// ═══════════════════════════════════════════════════════════
+function detectInsider(m, prev) {
   const signals = [];
   let score = 0;
 
-  const price = parseFloat(market.outcomePrices?.[0] || market.bestAsk || 0.5);
-  const vol24 = parseFloat(market.volume24hr || market.volume || 0);
-  const vol = parseFloat(market.volumeNum || vol24);
-  const liquidity = parseFloat(market.liquidityNum || market.liquidity || 0);
-  const prev = prevPrice ?? price;
-  const priceMove = Math.abs(price - prev);
-  const pricePct = prev > 0 ? (priceMove / prev) * 100 : 0;
+  const price = parseFloat(m.outcomePrices?.[0] ?? m.bestBid ?? 0.5);
+  const vol24 = parseFloat(m.volume24hr ?? m.volumeNum ?? 0);
+  const vol7d  = parseFloat(m.volume ?? 0);
+  const liq    = parseFloat(m.liquidityNum ?? m.liquidity ?? 1);
+  const spread = parseFloat(m.spread ?? 0);
 
-  // Volume spike
-  if (vol24 > 200000) { signals.push(`Ekstremt volumen: $${fmtNum(vol24)} på 24t`); score += 35; }
-  else if (vol24 > 50000) { signals.push(`Høj volumen: $${fmtNum(vol24)} på 24t`); score += 20; }
+  const prevPrice = prev?.price ?? price;
+  const prevVol   = prev?.vol24 ?? vol24;
 
-  // Price movement
-  if (pricePct > 15) { signals.push(`Kraftig kursbevægelse: ${pricePct.toFixed(1)}% på kort tid`); score += 40; }
-  else if (pricePct > 5) { signals.push(`Usædvanlig bevægelse: ${pricePct.toFixed(1)}%`); score += 22; }
+  const priceDelta  = Math.abs(price - prevPrice);
+  const pricePct    = prevPrice > 0 ? (priceDelta / prevPrice) * 100 : 0;
+  const volChange   = prevVol > 0 ? ((vol24 - prevVol) / prevVol) * 100 : 0;
+  const volLiqRatio = liq > 0 ? vol24 / liq : 0;
 
-  // Low liquidity + high volume = suspicious
-  if (liquidity > 0 && vol24 / liquidity > 3) { signals.push(`Volumen/likviditet ratio: ${(vol24/liquidity).toFixed(1)}x — mistænkelig`); score += 25; }
+  // 1. Volumen spike
+  if (vol24 > 500000) { signals.push(`Massiv volumen: $${fmtN(vol24)} på 24t 🔥`); score += 40; }
+  else if (vol24 > 100000) { signals.push(`Høj volumen: $${fmtN(vol24)} på 24t`); score += 25; }
+  else if (vol24 > 30000) { signals.push(`Forhøjet volumen: $${fmtN(vol24)}`); score += 12; }
 
-  // Extreme odds (near certainty)
-  if (price > 0.88 || price < 0.12) { signals.push(`Ekstreme odds: ${(price*100).toFixed(0)}% sandsynlighed`); score += 15; }
+  // 2. Pludselig kursbevægelse
+  if (pricePct > 20) { signals.push(`Ekstrem kursbevægelse: ${pricePct.toFixed(1)}% ⚡`); score += 45; }
+  else if (pricePct > 8) { signals.push(`Kraftig bevægelse: ${pricePct.toFixed(1)}% siden sidste scan`); score += 28; }
+  else if (pricePct > 3) { signals.push(`Usædvanlig bevægelse: ${pricePct.toFixed(1)}%`); score += 15; }
 
-  return { signals, score: Math.min(score, 100) };
+  // 3. Volumen vs likviditet (smart money signal)
+  if (volLiqRatio > 10) { signals.push(`Smart money ratio: ${volLiqRatio.toFixed(1)}x likviditet omsættes 🧠`); score += 30; }
+  else if (volLiqRatio > 4) { signals.push(`Høj omsætningshastighed: ${volLiqRatio.toFixed(1)}x likviditet`); score += 18; }
+
+  // 4. Volumen stigning
+  if (volChange > 100) { signals.push(`Volumen steget ${volChange.toFixed(0)}% siden sidst`); score += 20; }
+
+  // 5. Ekstreme odds (markedet er "for sikker" — mulig insider viden)
+  if (price > 0.90) { signals.push(`Markedet prissætter ${(price*100).toFixed(0)}% sandsynlighed — ekstremt højt`); score += 15; }
+  else if (price < 0.10) { signals.push(`Markedet prissætter kun ${(price*100).toFixed(0)}% sandsynlighed`); score += 12; }
+
+  // 6. Lav spread = stor interesse / likviditet flows ind
+  if (spread > 0 && spread < 0.02 && vol24 > 50000) { signals.push('Meget tight spread — høj handelsaktivitet'); score += 10; }
+
+  return { signals, score: Math.min(score, 100), price, vol24, volLiqRatio, pricePct };
 }
 
-// ── CONFIDENCE CALC ───────────────────────────────────────────────────────────
-function calcConfidence(market) {
-  const price = parseFloat(market.outcomePrices?.[0] || 0.5);
-  const vol = parseFloat(market.volume24hr || 0);
-  const liquidity = parseFloat(market.liquidityNum || 1);
+// ═══════════════════════════════════════════════════════════
+// CONFIDENCE CALCULATOR
+// ═══════════════════════════════════════════════════════════
+function calcConfidence(m, detection) {
+  const price  = detection.price;
+  const vol24  = detection.vol24;
+  const liq    = parseFloat(m.liquidityNum ?? 1);
+  const score  = detection.score;
 
-  // Confidence = how "certain" the market is + how much money is behind it
-  const certainty = Math.abs(price - 0.5) * 2; // 0-1, higher = more certain
-  const volumeScore = Math.min(vol / 100000, 1); // normalize to 0-1
-  const liquidityScore = Math.min(liquidity / 50000, 1);
+  // Certainty: how far from 50/50
+  const certainty = Math.abs(price - 0.5) * 2; // 0-1
 
-  const confidence = Math.round((certainty * 50 + volumeScore * 30 + liquidityScore * 20));
-  return Math.max(5, Math.min(confidence, 98));
+  // Volume strength
+  const volScore = Math.min(vol24 / 200000, 1);
+
+  // Liquidity backing
+  const liqScore = Math.min(liq / 100000, 1);
+
+  // Signal strength
+  const sigScore = score / 100;
+
+  // Weighted confidence
+  const raw = (certainty * 40 + volScore * 25 + liqScore * 15 + sigScore * 20);
+  return Math.round(Math.max(5, Math.min(raw, 97)));
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-function fmtNum(n) {
-  if (n >= 1e6) return `${(n/1e6).toFixed(1)}M`;
+// ═══════════════════════════════════════════════════════════
+// INVESTMENT RECOMMENDATION
+// ═══════════════════════════════════════════════════════════
+function getRecommendation(m, detection, confidence) {
+  const price = detection.price;
+  const score = detection.score;
+
+  if (score < 30) return null;
+
+  const direction = price > 0.5 ? 'JA' : 'NEJ';
+  const odds = price > 0.5 ? price : (1 - price);
+  const risk = score >= 60 ? 'HØJ RISIKO' : 'MODERAT RISIKO';
+
+  let action = '';
+  if (confidence >= 70 && score >= 50) action = `⚡ KØB ${direction} — ${(odds*100).toFixed(0)}% odds`;
+  else if (confidence >= 50) action = `👀 Overvej ${direction} — ${(odds*100).toFixed(0)}% odds`;
+  else action = `⚠️ Afvent — usikker signal`;
+
+  return { direction, odds, risk, action, confidence };
+}
+
+// ═══════════════════════════════════════════════════════════
+// POLYMARKET URL
+// ═══════════════════════════════════════════════════════════
+function polyUrl(m) {
+  const slug = m.slug ?? m.conditionId ?? m.id ?? '';
+  if (slug) return `https://polymarket.com/event/${slug}`;
+  return 'https://polymarket.com/markets';
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function fmtN(n) {
+  n = parseFloat(n) || 0;
+  if (n >= 1e6) return `${(n/1e6).toFixed(2)}M`;
   if (n >= 1e3) return `${(n/1e3).toFixed(0)}K`;
   return Math.round(n).toString();
 }
 function ago(ts) {
-  const s = Math.floor((Date.now() - ts) / 1000);
+  const s = Math.floor((Date.now()-ts)/1000);
   if (s < 60) return `${s}s siden`;
   if (s < 3600) return `${Math.floor(s/60)}m siden`;
   return `${Math.floor(s/3600)}t siden`;
 }
-function polyUrl(market) {
-  return market.marketMakerAddress
-    ? `https://polymarket.com/market/${market.conditionId || market.id}`
-    : `https://polymarket.com/markets`;
-}
-function riskLevel(score) {
-  if (score >= 60) return 'HIGH';
-  if (score >= 30) return 'MED';
-  return 'LOW';
-}
-function confidenceColor(pct) {
-  if (pct >= 75) return 'var(--green)';
-  if (pct >= 50) return 'var(--yellow)';
+function confColor(pct) {
+  if (pct >= 70) return 'var(--green)';
+  if (pct >= 45) return 'var(--yellow)';
   return 'var(--red)';
 }
-
-// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
-async function requestPush() {
-  if (!('Notification' in window)) return alert('Denne browser understøtter ikke notifikationer');
-  const p = await Notification.requestPermission();
-  state.pushEnabled = p === 'granted';
-  render();
-}
-function sendPush(title, body, url) {
-  if (state.pushEnabled && Notification.permission === 'granted') {
-    try {
-      const n = new Notification(title, { body, icon: 'https://polymarket.com/favicon.ico' });
-      if (url) n.onclick = () => window.open(url, '_blank');
-    } catch {}
-  }
+function riskBars(score) {
+  const filled = score >= 60 ? 4 : score >= 45 ? 3 : score >= 30 ? 2 : 1;
+  const color = score >= 60 ? 'red' : score >= 30 ? 'yellow' : 'green';
+  return [1,2,3,4].map(i =>
+    `<div class="risk-bar${i<=filled?' filled-'+color:''}"></div>`
+  ).join('');
 }
 
-// ── AUDIO ─────────────────────────────────────────────────────────────────────
-let audioCtx = null;
-function playAlert(level = 'MED') {
+// ═══════════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════════
+let _ac = null;
+function playAlert(level='MED') {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const freqs = level === 'HIGH' ? [523, 659, 784, 1047] : [440, 554, 659];
-    freqs.forEach((f, i) => {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.connect(g); g.connect(audioCtx.destination);
-      o.type = level === 'HIGH' ? 'square' : 'sine';
+    if (!_ac) _ac = new (window.AudioContext||window.webkitAudioContext)();
+    const freqs = level==='HIGH' ? [440,554,659,880,1047] : [440,554,659];
+    freqs.forEach((f,i) => {
+      const o=_ac.createOscillator(), g=_ac.createGain();
+      o.connect(g); g.connect(_ac.destination);
+      o.type = level==='HIGH'?'square':'sine';
       o.frequency.value = f;
-      const t = audioCtx.currentTime + i * 0.14;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(level === 'HIGH' ? 0.15 : 0.08, t + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
-      o.start(t); o.stop(t + 0.42);
+      const t = _ac.currentTime + i*0.13;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(level==='HIGH'?.15:.08,t+.04);
+      g.gain.exponentialRampToValueAtTime(.001,t+.4);
+      o.start(t); o.stop(t+.45);
     });
   } catch {}
 }
 
-// ── EMAIL ─────────────────────────────────────────────────────────────────────
-async function sendEmail(market, signals, confidence) {
-  const cfg = state.cfg;
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════
+async function requestPush() {
+  if (!('Notification' in window)) { alert('Din browser understøtter ikke notifikationer. Brug Safari på iPhone.'); return; }
+  const p = await Notification.requestPermission();
+  ST.pushEnabled = p === 'granted';
+  render();
+}
+function sendPush(title, body, url) {
+  if (!ST.pushEnabled || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, { body, icon: '/favicon.ico' });
+    n.onclick = () => { window.open(url,'_blank'); n.close(); };
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// EMAIL
+// ═══════════════════════════════════════════════════════════
+async function sendEmail(market, detection, confidence, rec) {
+  const cfg = ST.cfg;
   if (!cfg.sendgrid || !cfg.email) return;
   const url = polyUrl(market);
-  const price = parseFloat(market.outcomePrices?.[0] || 0.5);
-  const body = `SENTINEL — POLYMARKET INSIDER ADVARSEL\n\n📊 Market: ${market.question}\n🔗 Link: ${url}\n💰 Nuværende odds: ${(price*100).toFixed(0)}%\n📈 Sikkerhed: ${confidence}%\n\nSignaler:\n${signals.map(s => `  • ${s}`).join('\n')}\n\nVolumen 24t: $${fmtNum(parseFloat(market.volume24hr||0))}\n\nTidspunkt: ${new Date().toLocaleString('da-DK')}`;
+  const body = [
+    'SENTINEL — POLYMARKET INSIDER ADVARSEL',
+    '',
+    `📊 Market: ${market.question}`,
+    `🔗 Link: ${url}`,
+    `💰 Nuværende odds: ${(detection.price*100).toFixed(0)}% JA`,
+    `📈 Investerings-sikkerhed: ${confidence}%`,
+    `⚡ Anbefaling: ${rec?.action||'—'}`,
+    '',
+    'Signaler:',
+    ...detection.signals.map(s => `  • ${s}`),
+    '',
+    `Volumen 24t: $${fmtN(detection.vol24)}`,
+    `Score: ${detection.score}/100`,
+    '',
+    `Tidspunkt: ${new Date().toLocaleString('da-DK')}`,
+  ].join('\n');
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${cfg.sendgrid}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: cfg.email }] }],
-        from: { email: cfg.email, name: 'Sentinel' },
-        subject: `🚨 Polymarket Insider: ${market.question?.slice(0,50)}`,
-        content: [{ type: 'text/plain', value: body }],
+      method:'POST',
+      headers:{Authorization:`Bearer ${cfg.sendgrid}`,'Content-Type':'application/json'},
+      body:JSON.stringify({
+        personalizations:[{to:[{email:cfg.email}]}],
+        from:{email:cfg.email,name:'Sentinel'},
+        subject:`🚨 ${confidence}% sikker — ${market.question?.slice(0,55)}`,
+        content:[{type:'text/plain',value:body}],
       }),
     });
   } catch {}
 }
 
-// ── SCAN ──────────────────────────────────────────────────────────────────────
-let scanInterval = null;
-let cdInterval = null;
-const seenAlerts = new Set();
+// ═══════════════════════════════════════════════════════════
+// SCAN ENGINE
+// ═══════════════════════════════════════════════════════════
+let _scanTimer=null, _cdTimer=null;
+const _seen = new Set();
 
 async function scan() {
-  state.loading = true; render();
+  ST.loading = true;
+  render();
+
   try {
-    const markets = await fetchPolymarkets();
-    const prev = state.prevPrices;
-    const newPrev = {};
+    const markets = await fetchMarkets();
+    if (!markets.length) { ST.loading=false; render(); return; }
+
     const newAlerts = [];
+    const newPrev   = {};
 
     markets.forEach(m => {
-      const price = parseFloat(m.outcomePrices?.[0] || 0.5);
-      newPrev[m.id] = price;
+      const prev = ST.prevData[m.id];
+      const det  = detectInsider(m, prev);
+      const conf = calcConfidence(m, det);
+      const rec  = getRecommendation(m, det, conf);
 
-      const { signals, score } = detectInsider(m, prev[m.id]);
-      const confidence = calcConfidence(m);
-      const risk = riskLevel(score);
+      m._det  = det;
+      m._conf = conf;
+      m._rec  = rec;
 
-      if (score >= 28) {
-        const alertId = `${m.id}-${Math.floor(Date.now()/60000)}`; // dedupe per minute
-        if (!seenAlerts.has(alertId)) {
-          seenAlerts.add(alertId);
-          const alert = { id: `${m.id}-${Date.now()}`, market: m, signals, score, risk, confidence, ts: Date.now(), url: polyUrl(m), price };
+      newPrev[m.id] = { price: det.price, vol24: det.vol24 };
+
+      if (det.score >= (ST.cfg.minScore||30)) {
+        const dedupId = `${m.id}-${Math.floor(Date.now()/60000)}`;
+        if (!_seen.has(dedupId)) {
+          _seen.add(dedupId);
+          const isHigh = det.score >= 60;
+          const alert  = {
+            id: `${m.id}-${Date.now()}`,
+            market: { id:m.id, question:m.question, slug:m.slug, conditionId:m.conditionId, volume24hr:m.volume24hr, liquidityNum:m.liquidityNum },
+            det, conf, rec,
+            risk: isHigh?'HIGH':'MED',
+            ts: Date.now(),
+            url: polyUrl(m),
+            isNew: true,
+          };
           newAlerts.push(alert);
 
-          if (risk === 'HIGH') {
+          if (isHigh) {
             playAlert('HIGH');
-            sendPush(`🚨 Insider Signal: ${m.question?.slice(0,50)}`, `${confidence}% sikkerhed · ${signals[0]}`, polyUrl(m));
-            sendEmail(m, signals, confidence);
+            sendPush(
+              `🚨 ${conf}% sikker — Insider signal!`,
+              `${m.question?.slice(0,80)}\n${det.signals[0]||''}`,
+              polyUrl(m)
+            );
+            sendEmail(m, det, conf, rec);
           } else {
             playAlert('MED');
-            sendPush(`⚠ Polymarket Signal`, `${m.question?.slice(0,50)} · ${confidence}% sikkerhed`, polyUrl(m));
+            sendPush(
+              `⚠ Polymarket signal (${conf}% sikker)`,
+              m.question?.slice(0,80),
+              polyUrl(m)
+            );
           }
         }
       }
-
-      m._score = score;
-      m._confidence = confidence;
-      m._signals = signals;
-      m._risk = risk;
     });
 
-    state.markets = markets.sort((a, b) => (b._score || 0) - (a._score || 0));
-    state.prevPrices = newPrev;
-    store.set('prevPrices', newPrev);
-    state.lastScan = Date.now();
-    state.countdown = 60;
+    ST.markets  = markets.sort((a,b)=>(b._det?.score||0)-(a._det?.score||0));
+    ST.prevData = newPrev;
+    S.set('prevData', newPrev);
+    ST.lastScan = Date.now();
+    ST.countdown = ST.cfg.scanInterval||15;
+    ST.wsStatus = 'poll';
 
     if (newAlerts.length) {
-      state.alerts = [...newAlerts, ...state.alerts].slice(0, 100);
-      state.totalAlerts += newAlerts.length;
-      store.set('totalAlerts', state.totalAlerts);
+      ST.alerts = [...newAlerts, ...ST.alerts].slice(0,150);
+      ST.totalAlerts += newAlerts.length;
+      ST.newAlertCount += newAlerts.length;
+      S.set('alerts', ST.alerts.slice(0,50));
+      S.set('totalAlerts', ST.totalAlerts);
     }
-  } catch(e) { console.error(e); }
-  state.loading = false; render();
+  } catch(e) { console.error('Scan error:', e); }
+
+  ST.loading = false;
+  render();
 }
 
 function startScan() {
   scan();
-  scanInterval = setInterval(scan, 60000);
-  cdInterval = setInterval(() => { state.countdown = Math.max(0, state.countdown - 1); renderHeader(); }, 1000);
+  const interval = (ST.cfg.scanInterval||15)*1000;
+  _scanTimer = setInterval(scan, interval);
+  _cdTimer   = setInterval(()=>{ ST.countdown=Math.max(0,ST.countdown-1); updateCountdown(); },1000);
 }
-function stopScan() {
-  clearInterval(scanInterval); clearInterval(cdInterval);
+function stopScan() { clearInterval(_scanTimer); clearInterval(_cdTimer); }
+
+function updateCountdown() {
+  const el = document.getElementById('countdown');
+  if (el) el.textContent = `${ST.countdown}s`;
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
-function renderHeader() {
-  const el = document.getElementById('header-sub');
-  if (el) el.textContent = state.scanning
-    ? (state.loading ? 'Henter data...' : `Næste scan om ${state.countdown}s`)
-    : 'Scanner stoppet';
+// ═══════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function renderFeed() {
+  let html = '<div class="feed">';
+
+  // Banners
+  if (!ST.pushEnabled) {
+    html += `<div class="banner warn" onclick="requestPush()">🔔 Tryk for at aktivere push-notifikationer</div>`;
+  }
+  if (!ST.cfg.email) {
+    html += `<div class="banner info" onclick="gotoSettings()">✉ Tilføj e-mail for at modtage alarmer → Indstillinger</div>`;
+  }
+
+  const alerts = ST.alerts;
+  if (alerts.length === 0) {
+    html += `<div class="empty">
+      <div class="empty-icon">🔭</div>
+      <div class="empty-title">Overvåger Polymarket</div>
+      <div class="empty-sub">Du får besked her — og som push-notifikation — så snart der opdages mistænkelig aktivitet</div>
+    </div>`;
+  } else {
+    html += `<div class="section-head">🚨 ${alerts.length} signal${alerts.length>1?'er':''} opdaget</div>`;
+    alerts.forEach(a => { html += renderAlertCard(a); });
+  }
+
+  html += '</div>';
+  return html;
 }
 
-function confidenceCircleStyle(pct) {
-  const color = confidenceColor(pct);
-  return `border-color:${color};color:${color}`;
+function renderAlertCard(a) {
+  const c     = confColor(a.conf);
+  const isHigh = a.risk === 'HIGH';
+  const price  = a.det.price;
+  const odds   = price > 0.5 ? price : (1-price);
+  const dir    = price > 0.5 ? 'JA' : 'NEJ';
+
+  return `
+  <div class="alert-card ${isHigh?'high':'med'} ${a.isNew?'slide-up':''}">
+    <div class="alert-top">
+      <div class="alert-icon ${isHigh?'high':'med'}">${isHigh?'🚨':'⚠️'}</div>
+      <div style="flex:1">
+        <div class="alert-title">${a.market.question||'Ukendt market'}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+          <span class="pill ${isHigh?'pill-red':'pill-yellow'}" style="font-size:10px">${isHigh?'HØJ RISIKO':'MODERAT'}</span>
+          <span style="font-size:11px;color:var(--muted)">${ago(a.ts)}</span>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:22px;font-weight:800;color:${c}">${a.conf}%</div>
+        <div style="font-size:10px;color:var(--muted)">sikkerhed</div>
+      </div>
+    </div>
+
+    <div class="conf-block">
+      <div class="conf-row">
+        <span class="conf-label">Investerings-sikkerhed</span>
+        <span class="conf-pct" style="color:${c}">${a.conf}%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="conf-bar-bg" style="flex:1">
+          <div class="conf-bar" style="width:${a.conf}%;background:${c}"></div>
+        </div>
+      </div>
+      ${a.det.signals.length ? `
+      <div class="conf-signals" style="margin-top:8px">
+        ${a.det.signals.map(s=>`<div class="conf-signal">${s}</div>`).join('')}
+      </div>` : ''}
+    </div>
+
+    <div class="alert-pills" style="padding-top:10px">
+      <span class="pill pill-purple">${(price*100).toFixed(0)}% JA odds</span>
+      <span class="pill pill-blue">Vol: $${fmtN(a.det.vol24)}</span>
+      <span class="pill pill-dim">Score: ${a.det.score}/100</span>
+      ${a.det.volLiqRatio > 2 ? `<span class="pill pill-yellow">Ratio: ${a.det.volLiqRatio.toFixed(1)}x</span>` : ''}
+    </div>
+
+    ${a.rec ? `
+    <div style="margin:0 14px 10px;padding:10px 12px;background:rgba(139,92,246,.1);border-radius:12px;border:1px solid rgba(139,92,246,.2)">
+      <div style="font-size:12px;color:var(--purple);font-weight:600;margin-bottom:3px">💡 ANBEFALING</div>
+      <div style="font-size:14px;font-weight:700">${a.rec.action}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${a.rec.risk} · ${(a.det.price*100).toFixed(0)}% odds på JA</div>
+    </div>` : ''}
+
+    <div class="alert-cta">
+      <div class="cta-meta">
+        Liq: $${fmtN(parseFloat(a.market.liquidityNum||0))}<br/>
+        <span style="color:${c};font-weight:600">${a.conf}% sandsynlighed for gevinst</span>
+      </div>
+      <a href="${a.url}" target="_blank" class="cta-btn">
+        Åbn Polymarket →
+      </a>
+    </div>
+  </div>`;
 }
 
 function renderMarkeder() {
-  const flagged = state.markets.filter(m => (m._score || 0) >= 28);
-  const normal = state.markets.filter(m => (m._score || 0) < 28);
+  let html = '<div class="feed">';
 
-  if (state.loading && state.markets.length === 0) {
-    return `<div class="loading-wrap"><div class="spinner"></div>Henter Polymarket data...</div>`;
+  if (ST.loading && ST.markets.length === 0) {
+    html += `<div class="loading-wrap"><div class="spinner spin"></div>Henter Polymarket markeder...</div>`;
+    return html + '</div>';
   }
 
-  let html = '';
+  const flagged = ST.markets.filter(m => (m._det?.score||0) >= (ST.cfg.minScore||30));
+  const normal  = ST.markets.filter(m => (m._det?.score||0) < (ST.cfg.minScore||30));
 
-  if (!state.cfg.email) {
-    html += `<div class="status-bar warn">⚠ Ingen e-mail sat op — gå til Indstillinger</div>`;
-  }
-  if (!state.pushEnabled) {
-    html += `<div class="status-bar warn" onclick="requestPush()" style="cursor:pointer">🔔 Tryk for at aktivere push-notifikationer</div>`;
-  } else {
-    html += `<div class="status-bar ok">✓ Push-notifikationer aktiveret</div>`;
+  if (flagged.length) {
+    html += `<div class="section-head">🚨 Mistænkelig aktivitet (${flagged.length})</div>`;
+    flagged.forEach(m => { html += renderMarketRow(m, true); });
   }
 
-  if (flagged.length > 0) {
-    html += `<div class="section-title">🚨 Mistænkelig aktivitet (${flagged.length})</div>`;
-    flagged.forEach(m => {
-      html += renderMarketCard(m, true);
-    });
-  }
+  html += `<div class="section-head">📊 Alle markeder (${normal.length})</div>`;
+  normal.slice(0,30).forEach(m => { html += renderMarketRow(m, false); });
 
-  html += `<div class="section-title">📊 Top markeder (${normal.slice(0,20).length})</div>`;
-  normal.slice(0, 20).forEach(m => {
-    html += renderMarketCard(m, false);
-  });
-
+  html += '</div>';
   return html;
 }
 
-function renderMarketCard(m, flagged) {
-  const price = parseFloat(m.outcomePrices?.[0] || 0.5);
-  const conf = m._confidence || 50;
-  const vol = parseFloat(m.volume24hr || 0);
-  const confColor = confidenceColor(conf);
-  const url = polyUrl(m);
-  const riskClass = flagged ? (m._risk === 'HIGH' ? 'high' : 'med') : '';
+function renderMarketRow(m, flagged) {
+  const det  = m._det  || {};
+  const conf = m._conf || 50;
+  const c    = confColor(conf);
+  const price = det.price || 0.5;
+  const score = det.score || 0;
+  const cls = flagged ? (score>=60?'flagged':'flagged-med') : '';
 
   return `
-    <div class="market-card ${riskClass}">
-      <div class="market-card-header">
-        <div class="market-icon">📊</div>
-        <div class="market-title">${m.question || 'Ukendt market'}</div>
-      </div>
-      <div class="market-meta">
-        <span class="meta-pill ${price > 0.5 ? 'pill-green' : 'pill-red'}">${(price*100).toFixed(0)}% JA</span>
-        <span class="meta-pill pill-blue">Vol: $${fmtNum(vol)}</span>
-        ${flagged && m._signals?.length ? `<span class="meta-pill pill-yellow">⚡ ${m._signals.length} signal${m._signals.length>1?'er':''}</span>` : ''}
-        ${m._risk === 'HIGH' ? '<span class="meta-pill pill-red">HØJ RISIKO</span>' : ''}
-      </div>
-      <div class="market-footer">
-        <div class="confidence-bar-bg">
-          <div class="confidence-bar" style="width:${conf}%;background:${confColor}"></div>
+  <div class="market-row ${cls}" onclick="window.open('${polyUrl(m)}','_blank')">
+    <div class="market-info">
+      <div class="market-q">${m.question||'—'}</div>
+      <div class="market-sub">Vol: $${fmtN(det.vol24||0)} · Liq: $${fmtN(parseFloat(m.liquidityNum||0))}</div>
+      ${score>=30?`<div class="risk-meter">${riskBars(score)}<span style="font-size:10px;color:var(--muted);margin-left:4px">${score}/100</span></div>`:''}
+    </div>
+    <div class="market-right">
+      <div class="market-price" style="color:${price>0.5?'var(--green)':'var(--red)'}">${(price*100).toFixed(0)}%</div>
+      <div class="market-vol">JA odds</div>
+      <div class="conf-mini">
+        <div class="conf-mini-bar">
+          <div class="conf-mini-fill" style="width:${conf}%;background:${c}"></div>
         </div>
-        <div class="confidence-label" style="color:${confColor}">${conf}%</div>
-        <a href="${url}" target="_blank" class="open-link">Åbn →</a>
+        <span class="conf-mini-pct" style="color:${c}">${conf}%</span>
       </div>
-    </div>`;
-}
-
-function renderAdvarsler() {
-  if (state.alerts.length === 0) {
-    return `<div class="empty">
-      <div class="empty-icon">🔍</div>
-      <div class="empty-title">Ingen advarsler endnu</div>
-      <div class="empty-sub">Sentinel overvåger Polymarket og giver dig besked når der opdages mistænkelig aktivitet</div>
-    </div>`;
-  }
-
-  let html = `<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 4px">
-    <span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px;text-transform:uppercase">${state.alerts.length} advarsler</span>
-    <button onclick="clearAlerts()" style="font-size:12px;color:var(--muted);padding:4px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border)">Ryd alle</button>
+    </div>
   </div>`;
-
-  state.alerts.forEach(a => {
-    const confColor = confidenceColor(a.confidence);
-    const isHigh = a.risk === 'HIGH';
-    html += `
-      <div class="alert-card ${isHigh ? '' : 'med'}">
-        <div class="alert-header">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="alert-badge ${isHigh ? 'badge-red' : 'badge-yellow'}">${isHigh ? 'HØJ RISIKO' : 'MODERAT'}</span>
-            <span style="font-size:12px;color:var(--muted)">${ago(a.ts)}</span>
-          </div>
-          <div style="font-size:14px;font-weight:800;color:${confColor}">${a.confidence}% sikker</div>
-        </div>
-        <div class="alert-title">${a.market.question || 'Ukendt market'}</div>
-        <div class="alert-signals">
-          ${a.signals.map(s => `<div class="alert-signal">${s}</div>`).join('')}
-        </div>
-        <div style="margin-bottom:10px">
-          <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden">
-            <div style="height:100%;width:${a.confidence}%;background:${confColor};border-radius:2px"></div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Investerings-sikkerhed: ${a.confidence}%</div>
-        </div>
-        <div class="alert-actions">
-          <span class="alert-time">Odds: ${(a.price*100).toFixed(0)}% JA · Vol: $${fmtNum(parseFloat(a.market.volume24hr||0))}</span>
-          <a href="${a.url}" target="_blank" class="alert-open">Åbn på Polymarket →</a>
-        </div>
-      </div>`;
-  });
-
-  return html;
 }
 
 function renderIndstillinger() {
-  const cfg = state.cfg;
+  const cfg = ST.cfg;
   return `
-    <div class="settings-page">
-      <div class="settings-section">
-        <div class="settings-label">Scanner</div>
-        <div class="settings-card">
-          <div class="settings-row">
-            <div class="settings-row-icon" style="background:rgba(0,212,160,0.1)">📡</div>
-            <div class="settings-row-text">
-              <div class="settings-row-title">Auto-scan</div>
-              <div class="settings-row-sub">Scanner Polymarket hvert 60. sekund</div>
-            </div>
-            <div class="toggle ${state.scanning ? 'on' : 'off'}" onclick="toggleScan()">
-              <div class="toggle-knob"></div>
-            </div>
+  <div class="settings-wrap">
+    <div class="settings-section">
+      <div class="settings-label">Scanner</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="s-icon" style="background:rgba(0,229,160,.1)">📡</div>
+          <div class="s-text">
+            <div class="s-title">Auto-scan</div>
+            <div class="s-sub">Scanner Polymarket automatisk</div>
           </div>
-          <div class="settings-row">
-            <div class="settings-row-icon" style="background:rgba(168,85,247,0.1)">🔔</div>
-            <div class="settings-row-text">
-              <div class="settings-row-title">Push-notifikationer</div>
-              <div class="settings-row-sub">${state.pushEnabled ? 'Aktiveret ✓' : 'Ikke aktiveret'}</div>
-            </div>
-            <div class="toggle ${state.pushEnabled ? 'on' : 'off'}" onclick="requestPush()">
-              <div class="toggle-knob"></div>
-            </div>
+          <div class="toggle ${ST.scanning?'on':'off'}" onclick="toggleScan()"><div class="toggle-k"></div></div>
+        </div>
+        <div class="settings-row">
+          <div class="s-icon" style="background:rgba(139,92,246,.1)">🔔</div>
+          <div class="s-text">
+            <div class="s-title">Push-notifikationer</div>
+            <div class="s-sub">${ST.pushEnabled?'✓ Aktiveret':'Ikke aktiveret — tryk for at aktivere'}</div>
           </div>
-          <div class="settings-row">
-            <div class="settings-row-icon" style="background:rgba(255,184,48,0.1)">🔊</div>
-            <div class="settings-row-text">
-              <div class="settings-row-title">Lydalarmer</div>
-              <div class="settings-row-sub">Spiller lyd ved nye advarsler</div>
-            </div>
-            <div class="toggle on">
-              <div class="toggle-knob"></div>
-            </div>
+          <div class="toggle ${ST.pushEnabled?'on':'off'}" onclick="requestPush()"><div class="toggle-k"></div></div>
+        </div>
+        <div class="settings-row">
+          <div class="s-icon" style="background:rgba(255,184,0,.1)">🔊</div>
+          <div class="s-text">
+            <div class="s-title">Lydalarmer</div>
+            <div class="s-sub">Lyd ved nye advarsler</div>
           </div>
+          <div class="toggle on"><div class="toggle-k"></div></div>
         </div>
       </div>
+    </div>
 
-      <div class="settings-section">
-        <div class="settings-label">E-mail advarsler</div>
-        <div class="settings-card">
-          <div class="settings-input-wrap">
-            <div class="settings-input-label">DIN E-MAIL</div>
-            <input class="settings-input" id="cfg-email" type="email" value="${cfg.email || ''}" placeholder="din@email.dk"/>
-          </div>
-          <div class="settings-input-wrap">
-            <div class="settings-input-label">SENDGRID API-NØGLE</div>
-            <input class="settings-input" id="cfg-sendgrid" type="password" value="${cfg.sendgrid || ''}" placeholder="SG.xxxxxxxxxx"/>
-          </div>
+    <div class="settings-section">
+      <div class="settings-label">Tidsindstillinger</div>
+      <div class="settings-card">
+        <div class="s-input-wrap">
+          <div class="s-input-label">SCAN INTERVAL (sekunder) — Jo lavere jo hurtigere alarmer</div>
+          <input class="s-input" id="cfg-interval" type="number" value="${cfg.scanInterval||15}" min="10" max="300" placeholder="15"/>
+        </div>
+        <div class="s-input-wrap">
+          <div class="s-input-label">MIN. SCORE FOR ALARM (0-100) — Lavere = flere alarmer</div>
+          <input class="s-input" id="cfg-score" type="number" value="${cfg.minScore||30}" min="10" max="90" placeholder="30"/>
         </div>
       </div>
+    </div>
 
-      <div class="settings-section">
-        <div class="settings-label">Tærskelværdier</div>
-        <div class="settings-card">
-          <div class="settings-input-wrap">
-            <div class="settings-input-label">MIN. VOLUMEN FOR ALARM (USD)</div>
-            <input class="settings-input" id="cfg-vol" type="number" value="${cfg.minVolume || 50000}" placeholder="50000"/>
-          </div>
-          <div class="settings-input-wrap">
-            <div class="settings-input-label">MIN. SIKKERHEDSPROCENT FOR ALARM</div>
-            <input class="settings-input" id="cfg-conf" type="number" value="${cfg.minConfidence || 60}" placeholder="60"/>
-          </div>
+    <div class="settings-section">
+      <div class="settings-label">E-mail advarsler</div>
+      <div class="settings-card">
+        <div class="s-input-wrap">
+          <div class="s-input-label">DIN E-MAIL</div>
+          <input class="s-input" id="cfg-email" type="email" value="${cfg.email||''}" placeholder="din@email.dk"/>
+        </div>
+        <div class="s-input-wrap">
+          <div class="s-input-label">SENDGRID API-NØGLE</div>
+          <input class="s-input" id="cfg-sendgrid" type="password" value="${cfg.sendgrid||''}" placeholder="SG.xxxxxxxxxx"/>
         </div>
       </div>
+    </div>
 
-      <button class="save-btn" onclick="saveSettings()">Gem indstillinger</button>
+    <button class="save-btn" onclick="saveSettings()">💾 Gem alle indstillinger</button>
 
-      <div style="margin-top:16px;padding:14px 16px;background:var(--card);border-radius:14px;border:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6">
-        💡 Nøgler gemmes permanent på din telefon<br/>
-        💡 Polymarket data er gratis — ingen nøgle nødvendig<br/>
-        💡 SendGrid bruges kun til e-mail advarsler
-      </div>
-    </div>`;
+    <div class="info-box">
+      💡 <b>Nøgler gemmes permanent</b> — forsvinder ikke når du lukker appen<br/>
+      💡 <b>Scan interval:</b> 15 sek giver hurtigst mulige alarmer<br/>
+      💡 <b>Push-notifikationer:</b> Aktivér ovenfor for at få alarmer på låseskærmen<br/>
+      💡 <b>E-mail:</b> Kræver gratis SendGrid konto (app.sendgrid.com)<br/>
+      💡 <b>Score 30+</b> = moderat signal, <b>60+</b> = høj risiko/mulighed
+    </div>
+
+    <div style="margin-top:16px;text-align:center">
+      <button onclick="clearAll()" style="font-size:12px;color:var(--muted);padding:8px 16px;border-radius:10px;background:var(--card);border:1px solid var(--border)">
+        🗑 Ryd alle alarmer
+      </button>
+    </div>
+  </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════════════
 function render() {
-  const app = document.getElementById('app');
-  const unread = state.alerts.length;
+  const unread = ST.alerts.length;
+  const statusMap = { off:'off', poll:'poll', live:'live', connecting:'poll' };
+  const statusLabel = { off:'STOPPET', poll:`SCANNER`, live:'LIVE WebSocket', connecting:'FORBINDER...' };
 
-  app.innerHTML = `
-    <div class="app">
-      <div class="header">
-        <div class="header-top">
-          <div class="status-dot ${state.scanning ? 'on' : 'off'} ${state.scanning ? 'pulse' : ''}"></div>
-          <div class="logo">SENTINEL <span>POLY</span></div>
-          <button class="settings-btn" onclick="setTab('indstillinger')">⚙️</button>
-          <button class="scan-btn ${state.scanning ? 'on' : 'off'}" onclick="toggleScan()">
-            ${state.scanning ? '■ Stop' : '▶ Start'}
-          </button>
-        </div>
-        <div class="header-sub" id="header-sub">
-          ${state.scanning ? (state.loading ? 'Henter data...' : `Næste scan om ${state.countdown}s`) : 'Scanner stoppet'}
-        </div>
+  document.getElementById('app').innerHTML = `
+  <div class="app">
+    <div class="header">
+      <div class="header-row1">
+        <div class="logo">SENTINEL <span class="logo-poly">POLY</span></div>
+        <span class="ws-badge ${statusMap[ST.wsStatus]||'off'}">${statusLabel[ST.wsStatus]||'OFF'}</span>
+        <div style="flex:1"></div>
+        ${ST.loading?`<div class="spinner spin" style="width:18px;height:18px;margin-right:4px"></div>`:''}
+        <button class="header-btn" onclick="gotoSettings()">⚙️</button>
+        <button style="padding:7px 14px;border-radius:10px;font-size:12px;font-weight:700;background:${ST.scanning?'rgba(255,51,102,.15)':'rgba(0,229,160,.12)'};color:${ST.scanning?'var(--red)':'var(--green)'};border:1px solid ${ST.scanning?'rgba(255,51,102,.3)':'rgba(0,229,160,.25)'};margin-left:6px" onclick="toggleScan()">
+          ${ST.scanning?'■ Stop':'▶ Start'}
+        </button>
       </div>
+      <div class="header-stats">
+        ${ST.scanning?`<span class="stat">Næste: <b id="countdown">${ST.countdown}s</b></span>`:''}
+        ${ST.lastScan?`<span class="stat">Sidst: <b>${ago(ST.lastScan)}</b></span>`:''}
+        <span class="stat">Alarmer: <b style="color:${unread>0?'var(--red)':'var(--muted)'}">${unread}</b></span>
+        <span class="stat">Markeder: <b>${ST.markets.length}</b></span>
+      </div>
+    </div>
 
-      <div class="tabs">
-        <div class="tab ${state.tab === 'markeder' ? 'active' : ''}" onclick="setTab('markeder')">
-          📊 Markeder
-        </div>
-        <div class="tab ${state.tab === 'advarsler' || state.tab === 'indstillinger' ? '' : ''} ${state.tab === 'advarsler' ? 'active' : state.tab === 'indstillinger' ? '' : ''}" onclick="setTab('advarsler')" style="position:relative">
-          🔔 Advarsler
-          ${unread > 0 ? `<span class="tab-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-        </div>
+    <div class="tabs">
+      <div class="tab ${ST.tab==='feed'?'active':''}" onclick="setTab('feed')">
+        🔔 Alarmer${unread>0?`<span class="tab-badge">${unread>99?'99+':unread}</span>`:''}
       </div>
+      <div class="tab ${ST.tab==='markeder'?'active':''}" onclick="setTab('markeder')">
+        📊 Markeder
+      </div>
+      <div class="tab ${ST.tab==='settings'?'active':''}" onclick="setTab('settings')">
+        ⚙️ Indstillinger
+      </div>
+    </div>
 
-      <div class="content">
-        ${state.tab === 'markeder' ? renderMarkeder() : state.tab === 'advarsler' ? renderAdvarsler() : renderIndstillinger()}
-      </div>
-    </div>`;
+    <div class="content">
+      ${ST.tab==='feed' ? renderFeed() : ST.tab==='markeder' ? renderMarkeder() : renderIndstillinger()}
+    </div>
+  </div>`;
 }
 
-// ── ACTIONS ───────────────────────────────────────────────────────────────────
-function setTab(tab) { state.tab = tab; render(); }
-function clearAlerts() { state.alerts = []; state.totalAlerts = 0; store.set('totalAlerts', 0); render(); }
+// ═══════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════
+function setTab(t) { ST.tab=t; render(); }
+function gotoSettings() { setTab('settings'); }
 function toggleScan() {
-  state.scanning = !state.scanning;
-  store.set('scanning', state.scanning);
-  if (state.scanning) startScan(); else stopScan();
+  ST.scanning = !ST.scanning;
+  S.set('scanning', ST.scanning);
+  if (ST.scanning) { ST.wsStatus='poll'; startScan(); }
+  else { ST.wsStatus='off'; stopScan(); }
   render();
 }
+function clearAll() {
+  if (confirm('Ryd alle alarmer?')) {
+    ST.alerts=[]; ST.totalAlerts=0; ST.newAlertCount=0;
+    S.set('alerts',[]); S.set('totalAlerts',0);
+    render();
+  }
+}
 function saveSettings() {
-  state.cfg = {
-    email: document.getElementById('cfg-email')?.value || '',
-    sendgrid: document.getElementById('cfg-sendgrid')?.value || '',
-    minVolume: parseInt(document.getElementById('cfg-vol')?.value) || 50000,
-    minConfidence: parseInt(document.getElementById('cfg-conf')?.value) || 60,
+  const interval = parseInt(document.getElementById('cfg-interval')?.value)||15;
+  ST.cfg = {
+    email:      document.getElementById('cfg-email')?.value||'',
+    sendgrid:   document.getElementById('cfg-sendgrid')?.value||'',
+    minScore:   parseInt(document.getElementById('cfg-score')?.value)||30,
+    scanInterval: Math.max(10, interval),
   };
-  store.set('cfg', state.cfg);
-  alert('✓ Gemt!');
-  setTab('markeder');
+  S.set('cfg', ST.cfg);
+
+  // Restart scan with new interval
+  if (ST.scanning) { stopScan(); startScan(); }
+
+  // Show saved confirmation
+  const btn = document.querySelector('.save-btn');
+  if (btn) { btn.textContent = '✓ Gemt!'; btn.style.background='var(--green)'; btn.style.color='#000'; }
+  setTimeout(()=>setTab('feed'), 1000);
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
 render();
-if (state.scanning) startScan();
+if (ST.scanning) { ST.wsStatus='poll'; startScan(); }
 </script>
 </body>
 </html>
