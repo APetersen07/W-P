@@ -201,21 +201,46 @@ const ST = {
 // ═══════════════════════════════════════════════════════════
 // POLYMARKET API — multiple endpoints for redundancy
 // ═══════════════════════════════════════════════════════════
-const ENDPOINTS = [
-  'https://corsproxy.io/?url=https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false',
-  'https://corsproxy.io/?url=https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=liquidityNum&ascending=false',
+// Multiple CORS proxies for redundancy
+const PROXIES = [
+  'https://corsproxy.io/?url=',
+  'https://api.allorigins.win/raw?url=',
+  'https://cors-anywhere.herokuapp.com/',
 ];
+const BASE_URL = 'https://gamma-api.polymarket.com/markets?closed=false&limit=50&order=volume24hr&ascending=false';
 
 async function fetchMarkets() {
-  for (const url of ENDPOINTS) {
+  // Try each proxy in order
+  for (const proxy of PROXIES) {
     try {
-      const r = await fetch(url, {cache:'no-store', headers:{'Accept':'application/json'}});
-      if (!r.ok) continue;
+      const url = proxy + encodeURIComponent(BASE_URL);
+      console.log('Trying:', proxy);
+      const r = await fetch(url, {
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) { console.warn('Not OK:', r.status); continue; }
       const data = await r.json();
-      const arr = Array.isArray(data) ? data : (data.data || data.markets || []);
-      if (arr.length > 0) return arr;
-    } catch(e) { console.warn('Endpoint failed:', url, e.message); }
+      const arr = Array.isArray(data) ? data : (data.contents ? JSON.parse(data.contents) : []);
+      if (arr.length > 0) {
+        console.log('Success via:', proxy, '— got', arr.length, 'markets');
+        ST.wsStatus = 'poll';
+        return arr;
+      }
+    } catch(e) { console.warn('Proxy failed:', proxy, e.message); }
   }
+  
+  // Last resort: try direct (works on some networks)
+  try {
+    const r = await fetch(BASE_URL, { cache:'no-store', signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch {}
+  
+  console.error('All endpoints failed');
   return [];
 }
 
@@ -634,7 +659,16 @@ function renderMarkeder() {
   let html = '<div class="feed">';
 
   if (ST.loading && ST.markets.length === 0) {
-    html += `<div class="loading-wrap"><div class="spinner spin"></div>Henter Polymarket markeder...</div>`;
+    html += `<div class="loading-wrap"><div class="spinner spin"></div>Henter Polymarket data...<br/><span style="font-size:11px;margin-top:4px;display:block">Forbinder til API...</span></div>`;
+    return html + '</div>';
+  }
+  if (!ST.loading && ST.markets.length === 0) {
+    html += `<div class="empty">
+      <div class="empty-icon">⚠️</div>
+      <div class="empty-title">Kunne ikke hente data</div>
+      <div class="empty-sub">API forbindelsen fejlede. Prøv at trykke ▶ Stop og derefter ▶ Start igen.<br/><br/>Tjek at du er på WiFi eller 5G.</div>
+      <button onclick="scan()" style="margin-top:16px;padding:10px 24px;border-radius:12px;background:var(--purple);color:#fff;font-size:14px;font-weight:600">🔄 Prøv igen</button>
+    </div>`;
     return html + '</div>';
   }
 
@@ -794,7 +828,7 @@ function render() {
         ${ST.scanning?`<span class="stat">Næste: <b id="countdown">${ST.countdown}s</b></span>`:''}
         ${ST.lastScan?`<span class="stat">Sidst: <b>${ago(ST.lastScan)}</b></span>`:''}
         <span class="stat">Alarmer: <b style="color:${unread>0?'var(--red)':'var(--muted)'}">${unread}</b></span>
-        <span class="stat">Markeder: <b>${ST.markets.length}</b></span>
+        <span class="stat">Markeder: <b style="color:${ST.markets.length>0?'var(--green)':'var(--red)'}">${ST.markets.length>0?ST.markets.length:'Ingen data'}</b></span>
       </div>
     </div>
 
