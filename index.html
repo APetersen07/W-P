@@ -1,1 +1,387 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Sentinel"/>
+<meta name="theme-color" content="#030609"/>
+<title>Sentinel — Insider Watch</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  html,body,#root{height:100%;background:#030609;overflow:hidden}
+  ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:#030609}::-webkit-scrollbar-thumb{background:#1a3050}
+  .row{transition:background .12s;cursor:pointer;min-height:56px}.row:active{background:rgba(40,80,130,.3)!important}
+  .btn{cursor:pointer;border:none;transition:filter .12s;-webkit-appearance:none;min-height:44px;min-width:44px;touch-action:manipulation}.btn:active{filter:brightness(1.4);transform:scale(0.97)}
+  .blink{animation:blink 1.1s steps(1) infinite}@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  .pring{animation:pr 2s ease-out infinite}@keyframes pr{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.4);opacity:0}}
+  .slid{animation:si .22s ease}@keyframes si{from{transform:translateX(12px);opacity:0}to{transform:none;opacity:1}}
+  .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  input{outline:none!important;-webkit-appearance:none;border-radius:6px;font-size:16px!important}
+  input:focus{border-color:#64a8e0!important}
+  select{font-size:16px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
 
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const STOCK_TICKERS = ["NVDA","AAPL","TSLA","MSFT","META","JPM","AMZN","XOM","GOOGL","NFLX"];
+const CRYPTO_IDS    = ["bitcoin","ethereum","solana","ripple","avalanche-2","chainlink","sui","pepe"];
+const CRYPTO_MAP    = {bitcoin:"BTC",ethereum:"ETH",solana:"SOL",ripple:"XRP","avalanche-2":"AVAX",chainlink:"LINK",sui:"SUI",pepe:"PEPE"};
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function fetchStocks(key) {
+  if (key) {
+    try {
+      const r = await fetch(`https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${STOCK_TICKERS.join(",")}&apiKey=${key}`);
+      const d = await r.json();
+      if (d.tickers?.length) return d.tickers.map(t=>({ticker:t.ticker,name:t.ticker,market:"STOCK",price:t.day?.c||t.lastTrade?.p||0,pricePct:t.todaysChangePerc||0,volume:t.day?.v||0,avgVolume:t.prevDay?.v||1,volMult:(t.day?.v&&t.prevDay?.v)?t.day.v/t.prevDay.v:1,source:"massive"})).filter(a=>a.price>0);
+    } catch {}
+  }
+  try {
+    const r = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${STOCK_TICKERS.join("%2C")}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketVolume,averageDailyVolume3Month,shortName`);
+    const d = await r.json();
+    return (d?.quoteResponse?.result||[]).map(q=>{const vol=q.regularMarketVolume||0,avg=q.averageDailyVolume3Month||1;return{ticker:q.symbol,name:q.shortName||q.symbol,market:"STOCK",price:q.regularMarketPrice||0,pricePct:q.regularMarketChangePercent||0,volume:vol,avgVolume:avg,volMult:avg>0?vol/avg:1,source:"yahoo"};}).filter(a=>a.price>0);
+  } catch { return []; }
+}
+
+async function fetchCrypto() {
+  try {
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS.join(",")}&order=market_cap_desc&per_page=20&page=1&sparkline=false&price_change_percentage=1h,24h`);
+    const d = await r.json();
+    return d.map(c=>{const vol=c.total_volume||0,avg=(c.market_cap||1)*.02;return{ticker:CRYPTO_MAP[c.id]||c.symbol.toUpperCase(),name:c.name,market:"CRYPTO",price:c.current_price||0,pricePct:c.price_change_percentage_24h||0,pricePct1h:c.price_change_percentage_1h_in_currency||0,volume:vol,avgVolume:avg,volMult:avg>0?vol/avg:1,source:"coingecko"};});
+  } catch { return []; }
+}
+
+function detect(a) {
+  const signals=[];let score=0;
+  if(a.volMult>=5){signals.push({type:"VOL",label:`Volume ${a.volMult.toFixed(1)}x avg — ekstremt spike`,sev:"HIGH"});score+=42;}
+  else if(a.volMult>=2.5){signals.push({type:"VOL",label:`Volume ${a.volMult.toFixed(1)}x over gennemsnit`,sev:"MED"});score+=24;}
+  const move=a.market==="CRYPTO"&&a.pricePct1h!=null?a.pricePct1h:a.pricePct;
+  if(Math.abs(move)>=5){signals.push({type:"PRICE",label:`${move>0?"+":""}${move.toFixed(2)}% kursbevægelse — ingen nyhed`,sev:"HIGH"});score+=38;}
+  else if(Math.abs(move)>=2.5){signals.push({type:"PRICE",label:`Usædvanlig bevægelse: ${move>0?"+":""}${move.toFixed(2)}%`,sev:"MED"});score+=20;}
+  if(a.volMult>=2.5&&Math.abs(move)>=2.5){signals.push({type:"COMBO",label:"Vol + kurs divergens — forhøjet mistanke",sev:"HIGH"});score+=18;}
+  return{signals,score:Math.min(score,100)};
+}
+
+const fmtP=p=>{if(!p)return"—";if(p<0.01)return`$${p.toFixed(6)}`;if(p<1)return`$${p.toFixed(4)}`;if(p>=1000)return`$${p.toLocaleString("en-US",{maximumFractionDigits:0})}`;return`$${p.toFixed(2)}`;};
+const fmtV=v=>{if(!v)return"—";if(v>=1e9)return`$${(v/1e9).toFixed(2)}B`;if(v>=1e6)return`${(v/1e6).toFixed(1)}M`;return`${(v/1e3).toFixed(0)}K`;};
+const ago=ts=>{const s=Math.floor((Date.now()-ts)/1000);return s<60?`${s}s siden`:`${Math.floor(s/60)}m siden`;};
+const RISK={HIGH:{color:"#ff3b5c",bg:"rgba(255,59,92,.09)",border:"rgba(255,59,92,.28)",label:"HØJ RISIKO"},MED:{color:"#ffb340",bg:"rgba(255,179,64,.07)",border:"rgba(255,179,64,.22)",label:"MODERAT"},LOW:{color:"#34c85a",bg:"rgba(52,200,90,.05)",border:"rgba(52,200,90,.14)",label:"NORMAL"}};
+const toRisk=s=>s>=60?"HIGH":s>=30?"MED":"LOW";
+
+function useAudio(){
+  const ctx=useRef(null);
+  return useCallback((level="MED")=>{
+    try{
+      if(!ctx.current)ctx.current=new(window.AudioContext||window.webkitAudioContext)();
+      const ac=ctx.current;
+      (level==="HIGH"?[523,659,784,1047]:[440,554,659]).forEach((f,i)=>{
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.connect(g);g.connect(ac.destination);
+        o.type=level==="HIGH"?"square":"sine";o.frequency.value=f;
+        const t=ac.currentTime+i*.14;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(level==="HIGH"?.18:.1,t+.04);g.gain.exponentialRampToValueAtTime(.001,t+.38);
+        o.start(t);o.stop(t+.42);
+      });
+    }catch{}
+  },[]);
+}
+
+// ── SETTINGS MODAL ──────────────────────────────────────────────────────────
+function SettingsModal({cfg,onSave,onClose}){
+  const[v,setV]=useState({...cfg});
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#080f1c",border:"1px solid #1a3050",borderRadius:12,padding:24,width:"100%",maxWidth:420,fontFamily:"'Share Tech Mono',monospace",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{fontSize:12,color:"#64a8e0",letterSpacing:3,marginBottom:4}}>⚙ INDSTILLINGER</div>
+        <div style={{fontSize:13,color:"#1e3a58",marginBottom:20}}>Nøgler gemmes i din browser</div>
+        {[["MASSIVE.COM API-NØGLE","MASSIVE_KEY","text","Fra massive.com/dashboard → Keys"],["SENDGRID API-NØGLE","SENDGRID_KEY","password","Fra app.sendgrid.com → API Keys"],["DIN E-MAILADRESSE","ALERT_EMAIL","email","Modtager HØJ RISIKO advarsler"]].map(([label,key,type,hint])=>(
+          <div key={key} style={{marginBottom:16}}>
+            <div style={{fontSize:13,color:"#3a5a7a",letterSpacing:2,marginBottom:4}}>{label}</div>
+            <div style={{fontSize:13,color:"#1a3050",marginBottom:6}}>{hint}</div>
+            <input type={type} value={v[key]||""} onChange={e=>setV(p=>({...p,[key]:e.target.value}))}
+              style={{width:"100%",background:"#040810",border:"1px solid #1a2d40",borderRadius:6,padding:"10px 12px",color:"#c8d6e5",fontSize:13,fontFamily:"inherit"}}/>
+          </div>
+        ))}
+        <div style={{background:"rgba(100,168,224,.05)",border:"1px solid #0d1e30",borderRadius:6,padding:12,marginBottom:18,fontSize:10,color:"#2a4a6a",lineHeight:1.7}}>
+          💡 Krypto virker altid uden nøgle (CoinGecko)<br/>
+          💡 Aktier: Massive-nøgle giver bedst data<br/>
+          💡 E-mail: Kræver bekræftet SendGrid afsender
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn" onClick={()=>onSave(v)} style={{flex:1,padding:12,background:"rgba(100,168,224,.12)",color:"#64a8e0",border:"1px solid #64a8e030",borderRadius:8,fontSize:11,fontFamily:"inherit",letterSpacing:2}}>GEM</button>
+          <button className="btn" onClick={onClose} style={{flex:1,padding:12,background:"transparent",color:"#3a5a7a",border:"1px solid #1a2d40",borderRadius:8,fontSize:11,fontFamily:"inherit"}}>LUK</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ─────────────────────────────────────────────────────────────────
+function App(){
+  const[assets,setAssets]=useState([]);
+  const[alerts,setAlerts]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[error,setError]=useState(null);
+  const[lastFetch,setLastFetch]=useState(null);
+  const[scanning,setScanning]=useState(true);
+  const[tab,setTab]=useState("MARKEDER");
+  const[mktTab,setMktTab]=useState("ALL");
+  const[mute,setMute]=useState(false);
+  const[pushOn,setPushOn]=useState(false);
+  const[showSet,setShowSet]=useState(false);
+  const[selected,setSelected]=useState(null);
+  const[countdown,setCountdown]=useState(30);
+  const[totalAlerts,setTotalAlerts]=useState(0);
+  const[config,setConfig]=useState({MASSIVE_KEY:"",SENDGRID_KEY:"",ALERT_EMAIL:"",SCAN_INTERVAL_MS:30000});
+  const playAlert=useAudio();
+  const scanTimer=useRef(null);
+  const cdTimer=useRef(null);
+  const seenRef=useRef(new Set());
+
+  const requestPush=async()=>{
+    if(!("Notification" in window))return alert("Denne browser understøtter ikke notifikationer");
+    const p=await Notification.requestPermission();
+    setPushOn(p==="granted");
+  };
+
+  const firePush=useCallback((ticker,msg)=>{
+    if(pushOn&&Notification.permission==="granted")try{new Notification(`⚠ INSIDER: ${ticker}`,{body:msg,icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>"});}catch{}
+  },[pushOn]);
+
+  const sendEmail=useCallback(async(ticker,signals,price)=>{
+    if(!config.SENDGRID_KEY||!config.ALERT_EMAIL)return;
+    const body=`SENTINEL INSIDER ADVARSEL\n\nTicker: ${ticker}\nKurs: ${fmtP(price)}\n\nSignaler:\n${signals.map(s=>`  • ${s.label}`).join("\n")}\n\nTidspunkt: ${new Date().toLocaleString("da-DK")}`;
+    try{await fetch("https://api.sendgrid.com/v3/mail/send",{method:"POST",headers:{Authorization:`Bearer ${config.SENDGRID_KEY}`,"Content-Type":"application/json"},body:JSON.stringify({personalizations:[{to:[{email:config.ALERT_EMAIL}]}],from:{email:config.ALERT_EMAIL,name:"Sentinel"},subject:`🚨 Insider Advarsel: ${ticker}`,content:[{type:"text/plain",value:body}]})});}catch{}
+  },[config]);
+
+  const scan=useCallback(async()=>{
+    setLoading(true);setError(null);
+    try{
+      const[sR,cR]=await Promise.allSettled([fetchStocks(config.MASSIVE_KEY),fetchCrypto()]);
+      const all=[...(sR.status==="fulfilled"?sR.value:[]),(cR.status==="fulfilled"?cR.value:[])].flat().filter(a=>a.price>0);
+      if(all.length===0)throw new Error("Ingen data — tjek netværk");
+      setAssets(all);setLastFetch(Date.now());setCountdown(30);
+      const newAlerts=[];
+      for(const a of all){
+        const{signals,score}=detect(a);
+        if(score>=28){
+          const id=`${a.ticker}-${Math.floor(Date.now()/30000)}`;
+          if(!seenRef.current.has(id)){
+            seenRef.current.add(id);
+            const risk=toRisk(score);
+            newAlerts.push({id:`${a.ticker}-${Date.now()}`,ticker:a.ticker,name:a.name,market:a.market,score,risk,signals,price:a.price,ts:Date.now()});
+            if(risk==="HIGH"){if(!mute)playAlert("HIGH");firePush(a.ticker,signals[0]?.label);sendEmail(a.ticker,signals,a.price);}
+            else if(!mute)playAlert("MED");
+          }
+        }
+      }
+      if(newAlerts.length){setAlerts(prev=>[...newAlerts,...prev].slice(0,80));setTotalAlerts(c=>c+newAlerts.length);}
+    }catch(e){setError(e.message);}finally{setLoading(false);}
+  },[mute,playAlert,firePush,sendEmail,config]);
+
+  useEffect(()=>{
+    if(!scanning){clearInterval(scanTimer.current);clearInterval(cdTimer.current);return;}
+    scan();
+    scanTimer.current=setInterval(scan,30000);
+    cdTimer.current=setInterval(()=>setCountdown(c=>Math.max(0,c-1)),1000);
+    return()=>{clearInterval(scanTimer.current);clearInterval(cdTimer.current);};
+  },[scanning,scan]);
+
+  const displayed=assets.filter(a=>mktTab==="ALL"||a.market===mktTab).map(a=>({...a,...detect(a)})).sort((a,b)=>b.score-a.score);
+  const sel=selected?displayed.find(a=>a.ticker===selected):null;
+  const hasKey=!!config.MASSIVE_KEY;
+  const hasEmail=!!(config.SENDGRID_KEY&&config.ALERT_EMAIL);
+
+  // Safe area for iPhone notch
+  const iosPad=window.navigator.standalone?"env(safe-area-inset-top)":"0px";
+
+  return(
+    <div style={{fontFamily:"'Share Tech Mono',monospace",background:"#030609",height:"100vh",display:"flex",flexDirection:"column",paddingTop:iosPad}}>
+      {showSet&&<SettingsModal cfg={config} onSave={c=>{setConfig({...c});setShowSet(false);}} onClose={()=>setShowSet(false)}/>}
+
+      {/* HEADER */}
+      <div style={{background:"#040810",borderBottom:"1px solid #0c1c2c",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{position:"relative",width:12,height:12,flexShrink:0}}>
+          <div className="pring" style={{position:"absolute",inset:-2,borderRadius:"50%",border:`2px solid ${scanning?"#34c85a":"#ff3b5c"}`}}/>
+          <div style={{position:"absolute",inset:3,borderRadius:"50%",background:scanning?"#34c85a":"#ff3b5c",boxShadow:scanning?"0 0 6px #34c85a":"none"}}/>
+        </div>
+        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:4,color:"#deeeff"}}>SENTINEL</span>
+        <div style={{flex:1}}/>
+        {loading&&<div className="spin" style={{width:12,height:12,border:"2px solid #1e3550",borderTopColor:"#64a8e0",borderRadius:"50%",flexShrink:0}}/>}
+        {lastFetch&&!loading&&<span style={{fontSize:13,color:"#1e3a58"}}>{countdown}s</span>}
+        <button className="btn" onClick={()=>setMute(m=>!m)} style={{background:"transparent",color:!mute?"#34c85a":"#2a4060",fontSize:16,padding:"4px 8px"}}>{mute?"🔇":"🔊"}</button>
+        <button className="btn" onClick={()=>setShowSet(true)} style={{background:"transparent",color:"#4a7a9a",fontSize:16,padding:"4px 8px"}}>⚙</button>
+        <button className="btn" onClick={()=>setScanning(s=>!s)} style={{padding:"10px 16px",background:scanning?"rgba(255,59,92,.13)":"rgba(52,200,90,.13)",color:scanning?"#ff3b5c":"#34c85a",border:`1px solid ${scanning?"#ff3b5c40":"#34c85a40"}`,borderRadius:4,fontSize:13,letterSpacing:1}}>{scanning?"■ STOP":"▶ SCAN"}</button>
+      </div>
+
+      {error&&<div style={{background:"rgba(255,59,92,.08)",borderBottom:"1px solid rgba(255,59,92,.2)",padding:"6px 16px",fontSize:10,color:"#ff3b5c",flexShrink:0}}>⚠ {error}</div>}
+      {!hasKey&&tab==="MARKEDER"&&<div style={{background:"rgba(255,179,64,.06)",borderBottom:"1px solid rgba(255,179,64,.15)",padding:"6px 16px",display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#ffb340",flexShrink:0}}>
+        ⚠ Ingen Massive-nøgle — bruger Yahoo Finance
+        <button className="btn" onClick={()=>setShowSet(true)} style={{background:"rgba(255,179,64,.15)",color:"#ffb340",border:"1px solid rgba(255,179,64,.3)",borderRadius:3,padding:"8px 14px",fontSize:12,marginLeft:4}}>Tilføj →</button>
+      </div>}
+
+      {/* MAIN CONTENT */}
+      <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+
+        {/* MARKEDER TAB */}
+        {tab==="MARKEDER"&&(
+          <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+            <div style={{display:"flex",gap:6,padding:"10px 14px",borderBottom:"1px solid #0a1a28",flexShrink:0,alignItems:"center"}}>
+              {[["ALL","Alle"],["STOCK","Aktier"],["CRYPTO","Krypto"]].map(([v,l])=>(
+                <button key={v} className="btn" onClick={()=>setMktTab(v)} style={{padding:"10px 14px",background:mktTab===v?"rgba(100,168,224,.12)":"transparent",color:mktTab===v?"#64a8e0":"#1e3a58",border:`1px solid ${mktTab===v?"#64a8e030":"#0a1a28"}`,borderRadius:4,fontSize:13,letterSpacing:1}}>
+                  {l} ({assets.filter(a=>v==="ALL"||a.market===v).length})
+                </button>
+              ))}
+              <div style={{flex:1}}/>
+              <span style={{fontSize:12,color:"#1a3050"}}>{scanning?<><span className="blink">●</span> LIVE</>:"PAUSE"}</span>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"46px 1fr 82px 62px 80px",gap:4,padding:"5px 14px",fontSize:11,color:"#1a3050",letterSpacing:2,borderBottom:"1px solid #08131e",flexShrink:0}}>
+              <span>MKT</span><span>AKTIV</span><span>KURS</span><span>24t%</span><span>RISIKO</span>
+            </div>
+
+            {loading&&assets.length===0&&(
+              <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#1e3a58",fontSize:13,letterSpacing:2}}>
+                <div className="spin" style={{width:20,height:20,border:"2px solid #0e1e30",borderTopColor:"#64a8e0",borderRadius:"50%"}}/>
+                HENTER LIVE DATA...
+              </div>
+            )}
+
+            <div style={{flex:1,overflowY:"auto",paddingBottom:80}}>
+              {displayed.map(a=>{
+                const risk=RISK[toRisk(a.score)],isSel=selected===a.ticker;
+                return(
+                  <div key={a.ticker}>
+                    <div className="row" onClick={()=>setSelected(isSel?null:a.ticker)}
+                      style={{display:"grid",gridTemplateColumns:"46px 1fr 82px 62px 80px",gap:4,padding:"9px 14px",borderLeft:`3px solid ${a.score>=60?risk.color:a.score>=30?"#ffb34050":"#34c85a20"}`,background:isSel?"rgba(30,80,140,.18)":"transparent"}}>
+                      <span style={{fontSize:11,color:a.market==="CRYPTO"?"#a78bfa":"#60a5fa",background:a.market==="CRYPTO"?"rgba(167,139,250,.08)":"rgba(96,165,250,.08)",padding:"3px 6px",borderRadius:2,alignSelf:"center",textAlign:"center",letterSpacing:.5}}>{a.market==="CRYPTO"?"KRYP":"AKTIE"}</span>
+                      <div style={{alignSelf:"center"}}>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:a.score>=60?risk.color:"#cce0f5",letterSpacing:.5}}>{a.ticker}</div>
+                        <div style={{fontSize:12,color:"#1e3a58",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:110}}>{a.name}</div>
+                        <div style={{height:2,background:"#08131e",borderRadius:1,marginTop:3,width:80,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(a.volMult/10*100,100)}%`,background:a.volMult>5?"#ff3b5c":a.volMult>3?"#ffb340":"#34c85a"}}/></div>
+                      </div>
+                      <span style={{fontSize:11,color:"#b8d0e8",alignSelf:"center"}}>{fmtP(a.price)}</span>
+                      <span style={{fontSize:10,color:a.pricePct>0?"#34c85a":"#ff3b5c",alignSelf:"center"}}>{a.pricePct>0?"▲":"▼"}{Math.abs(a.pricePct).toFixed(1)}%</span>
+                      <div style={{alignSelf:"center"}}>
+                        <span style={{fontSize:12,color:risk.color,background:risk.bg,border:`1px solid ${risk.border}`,padding:"4px 8px",borderRadius:2,letterSpacing:.5,whiteSpace:"nowrap"}}>{a.score>=30?risk.label:"—"}</span>
+                        {a.score>0&&<div style={{fontSize:11,color:"#1a3050",marginTop:2}}>{a.score}/100</div>}
+                      </div>
+                    </div>
+                    {/* Detail */}
+                    {isSel&&sel&&(
+                      <div style={{background:"#050b14",margin:"0 10px 6px",borderRadius:8,padding:14,border:`1px solid ${RISK[toRisk(sel.score)].border}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+                          <div>
+                            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,color:RISK[toRisk(sel.score)].color,letterSpacing:1,lineHeight:1}}>{sel.ticker}</div>
+                            <div style={{fontSize:12,color:"#2a4060",marginTop:2}}>{sel.name} · {sel.source}</div>
+                          </div>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:RISK[toRisk(sel.score)].color,lineHeight:1}}>{sel.score}</div>
+                            <div style={{fontSize:11,color:"#1a3050",letterSpacing:1}}>RISIKO/100</div>
+                          </div>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+                          {[["KURS",fmtP(sel.price)],["24t %",`${sel.pricePct>0?"+":""}${sel.pricePct?.toFixed(2)||"—"}%`],["VOL",`${sel.volMult.toFixed(1)}x`],["VOLUMEN",fmtV(sel.volume)],["GNS VOL",fmtV(sel.avgVolume)],["MARKED",sel.market]].map(([k,v])=>(
+                            <div key={k} style={{background:"#030609",border:"1px solid #0a1a28",borderRadius:4,padding:"6px 8px"}}>
+                              <div style={{fontSize:11,color:"#1a3050",letterSpacing:1,marginBottom:2}}>{k}</div>
+                              <div style={{fontSize:11,color:"#b0c4d8"}}>{v}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {sel.signals.length>0&&(
+                          <div style={{borderTop:"1px solid #0a1a28",paddingTop:8}}>
+                            {sel.signals.map((sg,i)=>(
+                              <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:5}}>
+                                <span style={{fontSize:11,color:sg.sev==="HIGH"?"#ff3b5c":"#ffb340",background:sg.sev==="HIGH"?"rgba(255,59,92,.09)":"rgba(255,179,64,.07)",padding:"4px 8px",borderRadius:2,letterSpacing:.5,whiteSpace:"nowrap"}}>{sg.type}</span>
+                                <span style={{fontSize:10,color:"#5a7a9a"}}>{sg.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ADVARSLER TAB */}
+        {tab==="ADVARSLER"&&(
+          <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+            <div style={{display:"flex",alignItems:"center",padding:"10px 14px",borderBottom:"1px solid #0a1a28",flexShrink:0,gap:8}}>
+              <div style={{position:"relative",width:8,height:8}}>
+                <div className="pring" style={{position:"absolute",inset:-2,borderRadius:"50%",border:"1px solid #ff3b5c"}}/>
+                <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"#ff3b5c"}}/>
+              </div>
+              <span style={{fontSize:13,color:"#2a4060",letterSpacing:2}}>ADVARSELS-FEED</span>
+              <div style={{flex:1}}/>
+              {alerts.length>0&&<button className="btn" onClick={()=>{setAlerts([]);setTotalAlerts(0);}} style={{padding:"10px 16px",background:"transparent",color:"#1a3050",border:"1px solid #0a1a28",borderRadius:3,fontSize:12}}>RYD</button>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,padding:"10px 14px",flexShrink:0}}>
+              {[["🔊","LYD",!mute,()=>setMute(m=>!m)],["🔔","PUSH",pushOn,requestPush],["✉","E-MAIL",hasEmail,()=>setShowSet(true)]].map(([icon,label,on,fn])=>(
+                <button key={label} className="btn" onClick={fn} style={{padding:"8px 4px",textAlign:"center",background:on?"rgba(52,200,90,.07)":"rgba(255,255,255,.02)",color:on?"#34c85a":"#1e3a58",border:`1px solid ${on?"#34c85a18":"#0a1a28"}`,borderRadius:4,fontSize:10}}>
+                  {icon} <span style={{fontSize:12,letterSpacing:1}}>{label}</span><br/><span style={{fontSize:12,color:on?"#34c85a":"#1a3050"}}>{on?"TIL":"FRA"}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{flex:1,overflowY:"auto",padding:"0 14px 80px"}}>
+              {alerts.length===0?(
+                <div style={{textAlign:"center",padding:"50px 0",color:"#0e1e2e"}}>
+                  <div style={{fontSize:32,marginBottom:10,opacity:.3}}>◎</div>
+                  <div style={{fontSize:13,letterSpacing:3}}>OVERVÅGER MARKEDER</div>
+                </div>
+              ):alerts.map(a=>{
+                const risk=RISK[a.risk];
+                return(
+                  <div key={a.id} className="slid row" onClick={()=>{setTab("MARKEDER");setSelected(a.ticker);}}
+                    style={{background:risk.bg,border:`1px solid ${risk.border}`,borderLeft:`3px solid ${risk.color}`,borderRadius:6,padding:"10px 12px",marginBottom:8}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:risk.color,letterSpacing:1}}>{a.ticker}</span>
+                        <span style={{fontSize:12,color:a.market==="CRYPTO"?"#a78bfa":"#60a5fa",background:a.market==="CRYPTO"?"rgba(167,139,250,.1)":"rgba(96,165,250,.1)",padding:"1px 5px",borderRadius:2}}>{a.market}</span>
+                      </div>
+                      <span style={{fontSize:12,color:risk.color,background:`${risk.color}15`,padding:"4px 8px",borderRadius:2,letterSpacing:.5}}>{risk.label}</span>
+                    </div>
+                    <div style={{fontSize:13,color:"#1e3a58",marginBottom:5}}>{ago(a.ts)} · {fmtP(a.price)} · score {a.score}</div>
+                    {a.signals.map((sg,i)=><div key={i} style={{fontSize:10,color:"#4a6a88",marginBottom:2}}>▸ {sg.label}</div>)}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* BOTTOM NAV */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#040810",borderTop:"1px solid #0c1c2c",display:"grid",gridTemplateColumns:"1fr 1fr",paddingBottom:"env(safe-area-inset-bottom)",zIndex:100}}>
+        {[["MARKEDER","📈",0],["ADVARSLER","🔔",totalAlerts]].map(([name,icon,badge])=>(
+          <button key={name} className="btn" onClick={()=>setTab(name)}
+            style={{padding:"10px 0",background:"transparent",color:tab===name?"#64a8e0":"#2a4060",display:"flex",flexDirection:"column",alignItems:"center",gap:2,position:"relative"}}>
+            <span style={{fontSize:20}}>{icon}</span>
+            <span style={{fontSize:12,letterSpacing:2}}>{name}</span>
+            {badge>0&&<span style={{position:"absolute",top:6,right:"calc(50% - 16px)",background:"#ff3b5c",color:"white",borderRadius:10,fontSize:12,padding:"1px 5px",minWidth:16,textAlign:"center"}}>{badge}</span>}
+            {tab===name&&<div style={{position:"absolute",top:0,left:"20%",right:"20%",height:2,background:"#64a8e0",borderRadius:1}}/>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
